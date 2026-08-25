@@ -15,9 +15,9 @@ const PRODUTOS = [
 ];
 
 const CLIENTES = [
-  { nome: 'Juliana Prado', telefone: '31988887777' },
-  { nome: 'Camila Rezende', telefone: '31977776666' },
-  { nome: 'Fernanda Alves', telefone: '31966665555' },
+  { nome: 'Juliana Prado', telefone: '31900000001' },
+  { nome: 'Camila Rezende', telefone: '31900000002' },
+  { nome: 'Fernanda Alves', telefone: '31900000003' },
 ];
 
 // Gerador previsivel: a demo sai igual toda vez, o que ajuda a comparar telas.
