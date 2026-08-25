@@ -5,3 +5,6 @@ dados/
 .DS_Store
 Thumbs.db
 .claude/
+
+# HTML intermediario do gerador de PDF (o PDF e' o entregavel, o HTML nao)
+docs/*.html
