@@ -1,0 +1,25 @@
+{
+  "name": "AME Store",
+  "short_name": "AME Store",
+  "description": "Gestão da AME Store — vendas, estoque, despesas, recebíveis e DRE.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF8FC",
+  "theme_color": "#7442B8",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    { "src": "assets/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-mascara.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Vender", "short_name": "Vender", "url": "./index.html#/vender" },
+    { "name": "Estoque", "short_name": "Estoque", "url": "./index.html#/estoque" },
+    { "name": "DRE", "short_name": "DRE", "url": "./index.html#/dre" }
+  ]
+}

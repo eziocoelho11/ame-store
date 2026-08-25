@@ -1,0 +1,7 @@
+# Nada de dado da loja neste repositorio — ele e' publico.
+*.backup.json
+"AME Store - backup*.json"
+dados/
+.DS_Store
+Thumbs.db
+.claude/

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR" >
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AME Store</title>
+<meta name="description" content="Gestão da AME Store — vendas, estoque, despesas e DRE.">
+<meta name="theme-color" content="#7442B8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#201C25" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AME Store">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icone-180.png">
+<link rel="stylesheet" href="css/app.css">
+<script>
+// Aplica o tema salvo antes de pintar a tela, para nao piscar branco no escuro.
+try { var t = localStorage.getItem('ame.tema'); if (t && t !== 'auto') document.documentElement.setAttribute('data-tema', t); } catch (e) {}
+</script>
+</head>
+<body>
+
+<nav class="nav-lateral" aria-label="Menu principal">
+  <div class="logo">A.M.E<small>STORE</small></div>
+  <a href="#/" data-nav data-icone="casa"><span></span>Início</a>
+  <a href="#/vender" data-nav data-icone="carrinho"><span></span>Vender</a>
+  <a href="#/vendas" data-nav data-icone="recibo"><span></span>Vendas</a>
+  <a href="#/estoque" data-nav data-icone="caixa"><span></span>Estoque</a>
+  <a href="#/clientes" data-nav data-icone="pessoas"><span></span>Clientes</a>
+  <a href="#/despesas" data-nav data-icone="documento"><span></span>Despesas</a>
+  <a href="#/financeiro" data-nav data-icone="dinheiro"><span></span>Financeiro</a>
+  <a href="#/dre" data-nav data-icone="grafico"><span></span>DRE</a>
+  <a href="#/relatorios" data-nav data-icone="filtro"><span></span>Relatórios</a>
+  <a href="#/ajustes" data-nav data-icone="ajustes"><span></span>Ajustes</a>
+  <div class="rodape-nav">
+    <div id="status-sync-lateral"></div>
+  </div>
+</nav>
+
+<header class="topo">
+  <button id="btn-voltar" class="btn btn-icone btn-fantasma oculto" aria-label="Voltar"></button>
+  <h1 id="topo-titulo">Início</h1>
+  <button id="btn-sync" class="btn btn-icone btn-fantasma" aria-label="Sincronizar" title="Sincronizar"></button>
+</header>
+
+<main id="conteudo" class="conteudo" tabindex="-1"></main>
+
+<nav class="nav-inferior" aria-label="Menu">
+  <a href="#/" data-nav data-icone="casa"><span></span>Início</a>
+  <a href="#/vender" data-nav data-icone="carrinho"><span></span>Vender</a>
+  <a href="#/estoque" data-nav data-icone="caixa"><span></span>Estoque</a>
+  <a href="#/financeiro" data-nav data-icone="dinheiro"><span></span>Financeiro</a>
+  <a href="#/mais" data-nav data-icone="reticencias"><span></span>Mais</a>
+</nav>
+
+<noscript>
+  <div style="padding:2rem;font-family:system-ui">
+    <h1>AME Store</h1>
+    <p>Este aplicativo precisa de JavaScript ativado para funcionar.</p>
+  </div>
+</noscript>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
