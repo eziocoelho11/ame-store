@@ -90,9 +90,11 @@ async function api(caminho, opcoes = {}) {
 }
 
 function mensagemAmigavel(status, detalhe) {
-  if (status === 401) return 'Token do GitHub inválido ou expirado. Gere um novo em Ajustes › Sincronia.';
-  if (status === 403) return 'O GitHub recusou o acesso (limite de uso ou permissão do token). ' + detalhe;
-  if (status === 409 || status === 422) return 'Conflito de versão no arquivo — vou tentar de novo. ' + detalhe;
+  if (status === 401) return 'Token do GitHub inválido ou expirado. Gere um novo e atualize em Ajustes › Sincronia.';
+  if (status === 403) return 'O GitHub recusou o acesso. Confira se o token tem permissão Contents: Read and write neste repositório. ' + detalhe;
+  if (status === 404) return 'Repositório não encontrado. Confira o nome (usuario/repositorio) e se o token dá acesso a ele.';
+  if (status === 409 && /empty/i.test(detalhe)) return 'O repositório de dados ainda está vazio — não há nada para receber.';
+  if (status === 409 || status === 422) return 'Outro aparelho gravou neste arquivo ao mesmo tempo. ' + detalhe;
   return `GitHub respondeu ${status}. ${detalhe}`;
 }
 
@@ -139,8 +141,17 @@ function desserializar(texto) {
 }
 
 async function puxar() {
-  const arvore = await api(`/repos/${cfg.repo}/git/trees/${encodeURIComponent(cfg.ramo)}?recursive=1`);
-  if (arvore.naoExiste) return 0; // repositorio ainda vazio: nada a puxar
+  let arvore;
+  try {
+    arvore = await api(`/repos/${cfg.repo}/git/trees/${encodeURIComponent(cfg.ramo)}?recursive=1`);
+  } catch (err) {
+    // Repositorio recem-criado, sem nenhum commit: o GitHub responde 409
+    // "Git Repository is empty". Isso nao e' erro — e' so' nao haver nada a
+    // puxar ainda. O primeiro envio adiante cria o commit inicial.
+    if (err.status === 409) return 0;
+    throw err;
+  }
+  if (arvore.naoExiste) return 0; // o ramo ainda nao existe
 
   const arquivos = (arvore.tree || []).filter(
     (n) => n.type === 'blob' && n.path.startsWith('eventos/') && n.path.endsWith('.jsonl')
@@ -187,8 +198,12 @@ async function gravarArquivo(caminho, texto, mensagem) {
     return true;
   } catch (err) {
     if (err.status !== 409 && err.status !== 422) throw err;
-    // Alguem gravou no meio do caminho: pega o sha atual e tenta uma vez mais.
-    const atual = await api(`${url}?ref=${encodeURIComponent(cfg.ramo)}`);
+    // Ou alguem gravou no meio do caminho, ou o sha que eu guardei ficou velho.
+    // Busca o sha atual e tenta uma vez mais. Se o arquivo nao existe (caso do
+    // repositorio ainda vazio), grava sem sha, o que cria o arquivo do zero.
+    let atual = { naoExiste: true };
+    try { atual = await api(`${url}?ref=${encodeURIComponent(cfg.ramo)}`); }
+    catch (e2) { if (e2.status !== 409 && e2.status !== 404) throw e2; }
     if (!atual.naoExiste && atual.sha) corpo.sha = atual.sha;
     else delete corpo.sha;
     const r2 = await api(url, { method: 'PUT', body: JSON.stringify(corpo) });
