@@ -3,6 +3,8 @@
 Aplicativo de gestão da loja: vendas, estoque, despesas, recebíveis e DRE.
 Funciona no iPhone, no Android e no PC. Custo zero, sem mensalidade, sem servidor.
 
+**Endereço do app: https://eziocoelho11.github.io/ame-store/**
+
 ---
 
 ## 1. Como este app funciona (o essencial em 1 minuto)
@@ -26,16 +28,16 @@ O app é um site que se instala. Depois de instalado, abre com ícone próprio,
 tela cheia e funciona offline.
 
 **iPhone / iPad (Safari)**
-1. Abra o endereço do app no Safari (tem que ser o Safari — no iPhone só ele instala).
+1. Abra **https://eziocoelho11.github.io/ame-store/** no Safari (tem que ser o Safari — no iPhone só ele instala).
 2. Toque no botão de compartilhar (quadrado com seta para cima).
 3. "Adicionar à Tela de Início" → Adicionar.
 
 **Android (Chrome)**
-1. Abra o endereço no Chrome.
+1. Abra **https://eziocoelho11.github.io/ame-store/** no Chrome.
 2. Menu (⋮) → "Instalar aplicativo" ou "Adicionar à tela inicial".
 
 **PC (Chrome ou Edge)**
-1. Abra o endereço.
+1. Abra **https://eziocoelho11.github.io/ame-store/**.
 2. Ícone de instalar na barra de endereço, ou menu → Instalar.
 
 ---
@@ -146,7 +148,7 @@ Sem sincronia, cada aparelho tem seus próprios dados. Ligando, todos ficam igua
    - *Permissions › Repository permissions › Contents*: **Read and write**.
    - Escolha a validade e **anote a data em que o token expira**.
 3. No app: **Ajustes › Sincronia › Configurar**. Cole o repositório
-   (`seu-usuario/ame-store-dados`) e o token. Use **Testar conexão** antes de
+   (`eziocoelho11/ame-store-dados`) e o token. Use **Testar conexão** antes de
    salvar — o teste avisa se o repositório estiver público por engano.
 4. Repita o passo 3 nos outros aparelhos, com o mesmo repositório.
 
@@ -215,23 +217,44 @@ powershell -ExecutionPolicy Bypass -File servir.ps1 -Rede
 
 (precisa rodar o PowerShell como administrador na primeira vez)
 
-### Publicar no GitHub Pages (grátis, permanente)
-1. Crie um repositório **público** chamado `ame-store` — só código vai nele,
-   nenhum dado da loja.
-2. Envie os arquivos:
-   ```
-   git remote add origin https://github.com/SEU-USUARIO/ame-store.git
-   git push -u origin main
-   ```
-3. No repositório: Settings → Pages → Source: `Deploy from a branch` →
-   Branch `main`, pasta `/ (root)` → Save.
-4. Em poucos minutos o app fica em `https://SEU-USUARIO.github.io/ame-store/`.
+### Onde o app está publicado
+Já está no ar, em **https://eziocoelho11.github.io/ame-store/**, servido pelo
+GitHub Pages a partir do repositório público `eziocoelho11/ame-store`.
 
-Esse é o endereço para instalar em todos os aparelhos.
+Dois repositórios, com papéis distintos e que não devem se misturar:
 
-### Atualizar o app depois
-`git push` no repositório público. Os aparelhos pegam a versão nova ao abrir —
-o app avisa quando há atualização e ela vale na próxima abertura.
+| Repositório | Visibilidade | Conteúdo |
+|---|---|---|
+| `eziocoelho11/ame-store` | público | só o código do app |
+| `eziocoelho11/ame-store-dados` | privado | só os lançamentos da loja |
+
+O repositório do app é público porque o GitHub Pages grátis exige isso. Nenhum
+dado da loja entra nele — as vendas ficam no repositório privado.
+
+### Atualizar o app depois de mexer no código
+
+```
+cd C:\Projetos\ame-store
+git add -A
+git commit -m "descrição do que mudou"
+git push
+```
+
+Os aparelhos pegam a versão nova ao abrir, e o app avisa quando há atualização.
+
+**Ao mudar qualquer arquivo de código, suba também a versão do cache**: abra
+`sw.js` e incremente a constante `VERSAO` (de `ame-store-v1` para `ame-store-v2`,
+e assim por diante). Sem isso os aparelhos continuam servindo a versão antiga
+guardada offline, e a atualização parece não ter funcionado.
+
+### Gerar este manual em PDF
+
+```
+powershell -ExecutionPolicy Bypass -File docs\gerar-pdf.ps1
+```
+
+Lê o `manual.md`, converte para HTML e manda o Chrome imprimir em PDF. Rode de
+novo sempre que editar o manual.
 
 ---
 
