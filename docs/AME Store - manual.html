@@ -1,0 +1,267 @@
+﻿<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>AME Store - Manual</title>
+<style>
+@page { size: A4; margin: 18mm 15mm 18mm; }
+* { box-sizing: border-box; }
+body {
+  font-family: "Segoe UI", system-ui, Arial, sans-serif;
+  font-size: 10.5pt; line-height: 1.55; color: #2E282B; margin: 0;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; color: #3A3335; line-height: 1.25; }
+h1 {
+  font-size: 25pt; letter-spacing: .02em; margin: 0 0 4pt;
+  padding-bottom: 8pt; border-bottom: 2.5pt solid #7442B8;
+}
+h2 {
+  font-size: 15pt; margin: 22pt 0 7pt; padding-top: 8pt;
+  border-top: .75pt solid #E5DEEE; page-break-after: avoid; break-after: avoid;
+}
+h3 { font-size: 11.5pt; margin: 14pt 0 4pt; color: #5B3192; page-break-after: avoid; break-after: avoid; }
+p { margin: 0 0 7pt; text-align: justify; hyphens: auto; }
+a { color: #5B3192; text-decoration: none; word-break: break-word; }
+strong { color: #221D20; }
+hr { border: 0; border-top: .75pt solid #E5DEEE; margin: 14pt 0; }
+ul, ol { margin: 0 0 8pt; padding-left: 16pt; }
+li { margin-bottom: 3pt; }
+li > ul, li > ol { margin-top: 3pt; }
+code {
+  font-family: Consolas, "Cascadia Mono", monospace; font-size: 9pt;
+  background: #F4EDFB; color: #4A2C77; padding: .5pt 3pt; border-radius: 2pt;
+}
+pre {
+  background: #F7F5FA; border: .75pt solid #E5DEEE; border-left: 2.5pt solid #7442B8;
+  border-radius: 3pt; padding: 8pt 10pt; margin: 0 0 9pt; overflow: hidden;
+  page-break-inside: avoid; break-inside: avoid;
+}
+pre code { background: none; color: #2E282B; padding: 0; font-size: 9pt; line-height: 1.45; }
+blockquote {
+  margin: 0 0 9pt; padding: 6pt 10pt; background: #F7F5FA;
+  border-left: 2.5pt solid #C9A8E9; color: #5C5254; font-size: 9.8pt;
+}
+table {
+  width: 100%; border-collapse: collapse; margin: 0 0 10pt; font-size: 9.5pt;
+  page-break-inside: avoid; break-inside: avoid;
+}
+th {
+  text-align: left; background: #F4EDFB; color: #4A2C77; font-weight: 650;
+  padding: 5pt 7pt; border-bottom: 1pt solid #C9A8E9;
+}
+td { padding: 5pt 7pt; border-bottom: .5pt solid #E5DEEE; vertical-align: top; }
+.caixa {
+  display: inline-block; width: 8pt; height: 8pt; border: .75pt solid #9A929E;
+  border-radius: 1.5pt; margin-right: 2pt;
+}
+.caixa.marcada { background: #7442B8; border-color: #7442B8; }
+.capa-marca {
+  font-family: Georgia, serif; font-size: 9pt; letter-spacing: .32em;
+  color: #9A929E; text-transform: uppercase; margin-bottom: 10pt;
+}
+.rodape-doc {
+  margin-top: 22pt; padding-top: 8pt; border-top: .75pt solid #E5DEEE;
+  font-size: 8.5pt; color: #9A929E; text-align: center;
+}
+</style></head><body>
+<div class="capa-marca">A.M.E Store</div>
+<h1>AME Store — manual</h1>
+<p>Aplicativo de gestão da loja: vendas, estoque, despesas, recebíveis e DRE. Funciona no iPhone, no Android e no PC. Custo zero, sem mensalidade, sem servidor.</p>
+<p><strong>Endereço do app: https://eziocoelho11.github.io/ame-store/</strong></p>
+<hr>
+<h2>1. Como este app funciona (o essencial em 1 minuto)</h2>
+<p><strong>Os dados moram no seu aparelho.</strong> Não existe servidor. O app abre e funciona mesmo sem internet — se a wi-fi da loja cair no meio de uma venda, nada para.</p>
+<p><strong>Nada é apagado de verdade.</strong> Toda ação vira um registro com data, hora e aparelho de origem. Cancelar uma venda não apaga a venda: cria um cancelamento. Isso serve para auditoria e para a sincronia entre aparelhos nunca dar conflito.</p>
+<p><strong>A sincronia é opcional e usa o GitHub</strong> como caixa postal (seção 6). Cada aparelho escreve só o próprio arquivo, então dois aparelhos nunca disputam o mesmo lugar. E cada gravação vira uma versão salva: dá para voltar no tempo.</p>
+<hr>
+<h2>2. Instalar no aparelho</h2>
+<p>O app é um site que se instala. Depois de instalado, abre com ícone próprio, tela cheia e funciona offline.</p>
+<p><strong>iPhone / iPad (Safari)</strong></p>
+<ol>
+<li>Abra <strong>https://eziocoelho11.github.io/ame-store/</strong> no Safari (tem que ser o Safari — no iPhone só ele instala).</li>
+<li>Toque no botão de compartilhar (quadrado com seta para cima).</li>
+<li>"Adicionar à Tela de Início" → Adicionar.</li>
+</ol>
+</ol>
+</o>
+</l>
+</o>
+<p><strong>Android (Chrome)</strong></p>
+<ol>
+<li>Abra <strong>https://eziocoelho11.github.io/ame-store/</strong> no Chrome.</li>
+<li>Menu (⋮) → "Instalar aplicativo" ou "Adicionar à tela inicial".</li>
+</ol>
+</ol>
+</o>
+</l>
+</o>
+<p><strong>PC (Chrome ou Edge)</strong></p>
+<ol>
+<li>Abra <strong>https://eziocoelho11.github.io/ame-store/</strong>.</li>
+<li>Ícone de instalar na barra de endereço, ou menu → Instalar.</li>
+</ol>
+</ol>
+</o>
+</l>
+</o>
+<hr>
+<h2>3. Primeiros passos, na ordem certa</h2>
+<ol>
+<li><strong>Ajustes › Regime tributário</strong> — preencha o DAS mensal e o teto anual do MEI. Consulte os valores vigentes no Portal do Empreendedor. O app não preenche valor de tributo sozinho, de propósito: esses números mudam por lei todo ano e um número errado aqui contamina a DRE inteira.</li>
+<li><strong>Ajustes › Taxas da maquininha</strong> — copie da fatura da sua operadora a taxa de débito e de cada faixa de crédito, e em quantos dias cada parcela cai. <strong>Enquanto estiver zerado, a DRE mostra margem maior do que a real.</strong></li>
+<li><strong>Ajustes › Canais de venda</strong> — se vende em marketplace, ponha a comissão dele.</li>
+<li><strong>Estoque › Novo produto</strong> — cadastre a peça com os tamanhos e cores. Cada combinação vira um saldo separado, com SKU e código de barras próprios.</li>
+<li><strong>Estoque › Entrada de compra</strong> — lance o que chegou do fornecedor, com o custo real e o frete. O frete é rateado no custo das peças.</li>
+<li><strong>Vender</strong> — está pronto para o balcão.</li>
+</ol>
+</ol>
+</o>
+</l>
+</o>
+<p>Quer conhecer as telas antes? <strong>Ajustes › Conhecer o app › Carregar demonstração</strong> cria um mês fictício completo. Depois use "Apagar dados deste aparelho" para zerar.</p>
+<hr>
+<h2>4. O dia a dia</h2>
+<h3>Vender</h3>
+<p>Busque pelo nome, pelo SKU ou pelo código de barras, toque na peça, ajuste a quantidade e toque em <strong>Cobrar</strong>.</p>
+<p>No pagamento, escolha as formas — dá para dividir a mesma venda entre dinheiro, PIX, cartão e fiado. Se digitar mais dinheiro do que o total, o app calcula o troco e não conta a diferença como receita.</p>
+<ul>
+<li><strong>Dinheiro e PIX</strong> entram no caixa na hora.</li>
+<li><strong>Débito e crédito</strong> viram parcelas a receber, já com a taxa descontada.</li>
+<li><strong>Fiado</strong> exige um cliente selecionado na venda.</li>
+</ul>
+</ul>
+</u>
+</l>
+</u>
+<p>Leitor de código de barras USB funciona sem configuração: ele digita e dá Enter, e o app entende. Pela câmera, use o botão <strong>Ler código</strong>.</p>
+<h3>Devolução e troca</h3>
+<p>Abra a venda (em Vendas) e use <strong>Registrar devolução</strong>. Escolha quantas peças voltam, se elas retornam ao estoque e como o valor foi devolvido. A devolução entra no mês em que aconteceu, não no mês da venda.</p>
+<h3>Despesas</h3>
+<p>Lance tudo que sai: aluguel, energia, embalagem, marketing, pró-labore. Marque <strong>fixa</strong> (existe mesmo sem vender) ou <strong>variável</strong> (acompanha a venda) — é essa separação que faz o ponto de equilíbrio funcionar.</p>
+<p>Despesa marcada como "repete todo mês" pode ser copiada para o mês seguinte com o botão <strong>Repetir recorrentes</strong>.</p>
+<h3>Receber</h3>
+<p>Em <strong>Financeiro › A receber</strong> ficam as parcelas de cartão e os fiados em aberto. Quando o repasse da maquininha cair, selecione as parcelas e marque como recebidas.</p>
+<hr>
+<h2>5. Entender os números</h2>
+<h3>DRE e fluxo de caixa medem coisas diferentes — e os dois estão certos</h3>
+<p>A <strong>DRE</strong> conta a venda no dia em que ela aconteceu, mesmo que o dinheiro do cartão só caia em 60 dias. Ela responde: <em>a loja dá lucro?</em></p>
+<p>O <strong>Fluxo de caixa</strong> conta o dinheiro no dia em que ele entra ou sai. Ele responde: <em>tem dinheiro na conta?</em></p>
+<p>Loja lucrativa que quebra por falta de caixa é exatamente a diferença entre as duas. Por isso as duas telas existem separadas.</p>
+<p>A compra de mercadoria mostra bem isso: sai do caixa no dia em que a mercadoria chega, mas só entra na DRE como CMV quando a peça é vendida.</p>
+<h3>Custo médio ponderado</h3>
+<p>Cada entrada recalcula o custo médio da peça. Se você comprou 10 a R$ 50 e depois 10 a R$ 60, o custo médio vira R$ 55 — e é esse valor que a venda seguinte usa como CMV. É o que mantém a margem honesta quando o fornecedor reajusta.</p>
+<h3>Taxa de cartão e comissão são dedução de receita</h3>
+<p>Não são despesa operacional. Entram antes da margem bruta, para a margem por canal ficar real: a mesma peça rende diferente no balcão e no marketplace.</p>
+<h3>Ponto de equilíbrio</h3>
+<p>Quanto a loja precisa faturar no mês para o resultado zerar. Calculado como despesas fixas dividido pela margem de contribuição.</p>
+<h3>Teto do MEI</h3>
+<p>O painel mostra o faturamento acumulado dos últimos 12 meses contra o teto. Passar do teto obriga a mudar de regime e pagar a diferença — o medidor existe para você ver isso chegando com meses de antecedência, não no susto.</p>
+<hr>
+<h2>6. Sincronia entre aparelhos</h2>
+<p>Sem sincronia, cada aparelho tem seus próprios dados. Ligando, todos ficam iguais.</p>
+<h3>Montar (uma vez só)</h3>
+<ol>
+<li>Crie no GitHub um repositório <strong>privado</strong> chamado <code>ame-store-dados</code>. <strong>Privado é obrigatório</strong> — é onde ficam as vendas da loja.</li>
+<li>GitHub → Settings → Developer settings → Personal access tokens → <strong>Fine-grained tokens</strong> → Generate new token.<ul>
+<li><em>Repository access</em>: apenas <code>ame-store-dados</code>.</li>
+<li><em>Permissions › Repository permissions › Contents</em>: <strong>Read and write</strong>.</li>
+<li>Escolha a validade e <strong>anote a data em que o token expira</strong>.</li>
+</ul>
+<li>No app: <strong>Ajustes › Sincronia › Configurar</strong>. Cole o repositório (<code>eziocoelho11/ame-store-dados</code>) e o token. Use <strong>Testar conexão</strong> antes de salvar — o teste avisa se o repositório estiver público por engano.</li>
+<li>Repita o passo 3 nos outros aparelhos, com o mesmo repositório.</li>
+</ol>
+</ol>
+</o>
+</l>
+</o>
+<h3>No dia a dia</h3>
+<p>O app sincroniza sozinho: ao abrir, poucos segundos depois de cada lançamento, ao voltar para a tela e <strong>de tempos em tempos enquanto estiver aberto</strong> (a cada 45 segundos, ajustável em Ajustes › Sincronia). Na prática, uma venda feita no celular da loja aparece no PC em menos de um minuto, sem ninguém apertar nada. O botão de sincronizar no topo força na hora.</p>
+<p>Duas coisas que vale entender, porque explicam o comportamento:</p>
+<p><strong>Aparelho fechado não sincroniza.</strong> Um app instalado pelo navegador não roda em segundo plano — no iPhone, nunca. Ele busca as novidades no instante em que for aberto. Não existe forma de contornar isso sem manter um servidor no ar, que traria mensalidade.</p>
+<p><strong>Perguntar de tempos em tempos não custa nada.</strong> A consulta é condicional: se nada mudou, o GitHub responde "sem novidade", sem enviar conteúdo — e esse tipo de resposta não conta no limite de uso. Por isso o intervalo curto é seguro.</p>
+<p>Sem internet, tudo continua funcionando: o que ficou pendente sobe na próxima vez.</p>
+<h3>Quando o token expirar</h3>
+<p>A sincronia para e o app avisa com erro de token inválido. Gere um token novo (passo 2) e cole em <strong>Ajustes › Sincronia › Alterar</strong>. Nada se perde: os lançamentos ficam guardados no aparelho até conseguir subir.</p>
+<h3>Se perder um aparelho</h3>
+<p>Revogue o token no GitHub (Settings → Developer settings → Tokens → Revoke). Aquele aparelho para de acessar o repositório imediatamente.</p>
+<hr>
+<h2>7. Backup</h2>
+<p><strong>Ajustes › Backup › Baixar backup</strong> gera um arquivo <code>.json</code> com o histórico inteiro. Guarde no Google Drive.</p>
+<p>Restaurar (em qualquer aparelho) reconstrói tudo: estoque, vendas, DRE, recebíveis. Restaurar <strong>junta</strong> com o que já existe — lançamento repetido é reconhecido pelo identificador e ignorado, nada é sobrescrito.</p>
+<p>Com a sincronia ligada, o repositório do GitHub já é um backup versionado. O arquivo <code>.json</code> é a segunda camada, para o caso de perder o acesso à conta.</p>
+<hr>
+<h2>8. Etiquetas e código de barras</h2>
+<p><strong>Estoque › Etiquetas</strong> monta uma folha para imprimir, com nome, tamanho, cor, código de barras e preço.</p>
+<p>Os códigos são EAN-13 gerados pelo app com prefixo 2 — a faixa que o padrão GS1 reserva para uso interno de loja. Nunca colidem com o código de fábrica de outro produto.</p>
+<p><strong>Sobre ler pela câmera:</strong> no Android e no PC o app usa o leitor nativo do navegador, que é rápido e preciso. <strong>O Safari do iPhone não tem esse recurso</strong>, então lá o app usa um decodificador próprio — funciona, mas erra mais com etiqueta amassada ou luz fraca. Buscar por nome ou digitar o SKU continua disponível em todas as telas; a câmera acelera, não é o único caminho.</p>
+<hr>
+<h2>9. Rodar e publicar</h2>
+<h3>Testar no PC, sem publicar</h3>
+<p>Na pasta do projeto:</p>
+<pre><code>
+powershell -ExecutionPolicy Bypass -File servir.ps1
+</code></pre>
+<p>Abre em <code>http://localhost:8080/</code>. Para abrir também no celular pela mesma wi-fi:</p>
+<pre><code>
+powershell -ExecutionPolicy Bypass -File servir.ps1 -Rede
+</code></pre>
+<p>(precisa rodar o PowerShell como administrador na primeira vez)</p>
+<h3>Onde o app está publicado</h3>
+<p>Já está no ar, em <strong>https://eziocoelho11.github.io/ame-store/</strong>, servido pelo GitHub Pages a partir do repositório público <code>eziocoelho11/ame-store</code>.</p>
+<p>Dois repositórios, com papéis distintos e que não devem se misturar:</p>
+<table><thead><tr>
+<th>Repositório</th>
+<th>Visibilidade</th>
+<th>Conteúdo</th>
+</tr></thead><tbody>
+<tr>
+<td><code>eziocoelho11/ame-store</code></td>
+<td>público</td>
+<td>só o código do app</td>
+</tr>
+<tr>
+<td><code>eziocoelho11/ame-store-dados</code></td>
+<td>privado</td>
+<td>só os lançamentos da loja</td>
+</tr>
+</tbody></table>
+<p>O repositório do app é público porque o GitHub Pages grátis exige isso. Nenhum dado da loja entra nele — as vendas ficam no repositório privado.</p>
+<h3>Atualizar o app depois de mexer no código</h3>
+<pre><code>
+cd C:\Projetos\ame-store
+git add -A
+git commit -m "descrição do que mudou"
+git push
+</code></pre>
+<p>Os aparelhos pegam a versão nova ao abrir, e o app avisa quando há atualização.</p>
+<p><strong>Ao mudar qualquer arquivo de código, suba também a versão do cache</strong>: abra <code>sw.js</code> e incremente a constante <code>VERSAO</code> (de <code>ame-store-v1</code> para <code>ame-store-v2</code>, e assim por diante). Sem isso os aparelhos continuam servindo a versão antiga guardada offline, e a atualização parece não ter funcionado.</p>
+<h3>Gerar este manual em PDF</h3>
+<pre><code>
+powershell -ExecutionPolicy Bypass -File docs\gerar-pdf.ps1
+</code></pre>
+<p>Lê o <code>manual.md</code>, converte para HTML e manda o Chrome imprimir em PDF. Rode de novo sempre que editar o manual.</p>
+<hr>
+<h2>10. Problemas comuns</h2>
+<p><strong>"Não consegui abrir os dados neste aparelho"</strong> Janela anônima bloqueia o armazenamento local. Abra numa janela normal.</p>
+<p><strong>Os números da DRE parecem altos demais</strong> Confira as taxas da maquininha em Ajustes. Zeradas, elas não descontam nada.</p>
+<p><strong>O estoque ficou negativo</strong> Alguém vendeu uma peça que o sistema não sabia que existia. Corrija em Estoque → abra o produto → Ajustar, com o motivo. O histórico registra o acerto.</p>
+<p><strong>Uma venda foi lançada errada</strong> Cancele (a venda fica no histórico marcada como cancelada, o estoque volta e os recebíveis são cancelados) e lance de novo. Não existe editar venda de propósito: apagar rastro de dinheiro é o tipo de coisa que ninguém consegue auditar depois.</p>
+<p><strong>A sincronia parou</strong> Veja Ajustes › Sincronia. Erro de token = token expirado ou revogado (seção 6).</p>
+<p><strong>Apaguei sem querer os dados de um aparelho</strong> Se a sincronia estava ligada, reconfigure a sincronia nele: os dados voltam do repositório. Se não estava, restaure o último backup.</p>
+<hr>
+<h2>11. Onde ficam as coisas</h2>
+<pre><code>
+index.html          a página do app
+sw.js               o que faz o app funcionar offline
+servir.ps1          servidor local para testar no PC
+css/app.css         toda a aparência
+js/core/            base: banco local, log de eventos, estado, sincronia
+js/domain/          as regras de negócio (estoque, vendas, DRE, relatórios)
+js/ui/              as telas
+docs/manual.md      este arquivo
+</code></pre>
+<p>O app não usa nenhuma biblioteca externa. É HTML, CSS e JavaScript puros: não há dependência para atualizar, nem pacote para apodrecer, nem fornecedor para cobrar mensalidade.</p>
+
+<div class="rodape-doc">
+  AME Store &middot; documento gerado a partir de <code>docs/manual.md</code> em 25/08/2026<br>
+  App: https://eziocoelho11.github.io/ame-store/
+</div>
+</body></html>

@@ -153,8 +153,22 @@ Sem sincronia, cada aparelho tem seus próprios dados. Ligando, todos ficam igua
 4. Repita o passo 3 nos outros aparelhos, com o mesmo repositório.
 
 ### No dia a dia
-O app sincroniza sozinho ao abrir, depois de cada venda e ao voltar para a tela.
+O app sincroniza sozinho: ao abrir, poucos segundos depois de cada lançamento,
+ao voltar para a tela e **de tempos em tempos enquanto estiver aberto** (a cada
+45 segundos, ajustável em Ajustes › Sincronia). Na prática, uma venda feita no
+celular da loja aparece no PC em menos de um minuto, sem ninguém apertar nada.
 O botão de sincronizar no topo força na hora.
+
+Duas coisas que vale entender, porque explicam o comportamento:
+
+**Aparelho fechado não sincroniza.** Um app instalado pelo navegador não roda em
+segundo plano — no iPhone, nunca. Ele busca as novidades no instante em que for
+aberto. Não existe forma de contornar isso sem manter um servidor no ar, que
+traria mensalidade.
+
+**Perguntar de tempos em tempos não custa nada.** A consulta é condicional: se
+nada mudou, o GitHub responde "sem novidade", sem enviar conteúdo — e esse tipo
+de resposta não conta no limite de uso. Por isso o intervalo curto é seguro.
 
 Sem internet, tudo continua funcionando: o que ficou pendente sobe na próxima vez.
 

@@ -103,11 +103,16 @@ let _timer = null;
 
 export function definirGatilhoSincronia(fn) { _gatilhoSincronia = fn; }
 
-/** Sincroniza pouco depois da ultima gravacao, para nao subir um arquivo por clique. */
+/**
+ * Sincroniza pouco depois da ultima gravacao, para nao subir um arquivo por
+ * clique. Sao poucos segundos: quanto menor a espera, mais rapido o lancamento
+ * aparece nos outros aparelhos; quanto maior, menos gravacoes no repositorio.
+ * Seis segundos cobre o intervalo entre itens de uma mesma venda.
+ */
 function agendarSincronia() {
   if (!_gatilhoSincronia) return;
   clearTimeout(_timer);
-  _timer = setTimeout(() => { try { _gatilhoSincronia(); } catch (e) { console.warn(e); } }, 20000);
+  _timer = setTimeout(() => { try { _gatilhoSincronia(); } catch (e) { console.warn(e); } }, 6000);
 }
 
 /** Forca o envio agora (botao "sincronizar" e ao fechar o app). */

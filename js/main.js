@@ -112,8 +112,15 @@ async function iniciar() {
 
   // Ao sair, tenta empurrar o que ficou pendente.
   window.addEventListener('pagehide', () => { sync.enviarPendentesRapido(); });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') sync.sincronizar({}).then(atualizarStatusSync).catch(() => {});
+
+  // Consulta periodica: e' o que faz o lancamento de um aparelho aparecer nos
+  // outros sozinho. Quem cuida de pausar quando o app sai da frente e' o
+  // proprio sync.js.
+  sync.ligarAtualizacaoAutomatica((resultado) => {
+    atualizarStatusSync();
+    if (resultado.recebidos) {
+      toast(`${resultado.recebidos} ${resultado.recebidos === 1 ? 'lançamento novo' : 'lançamentos novos'} de outro aparelho.`);
+    }
   });
 }
 

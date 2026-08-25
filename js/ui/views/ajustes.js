@@ -87,7 +87,22 @@ async function html() {
         <tr><td>Repositório</td><td class="dir mono">${esc(s.repo)}</td></tr>
         <tr><td>Última sincronia</td><td class="dir">${s.ultima || 'ainda não'}</td></tr>
         <tr><td>Eventos pendentes</td><td class="dir num">${pend}</td></tr>
+        <tr><td>Atualização automática</td><td class="dir">${sync.intervalo() > 0
+          ? 'a cada ' + sync.intervalo() + ' segundos'
+          : '<span class="texto-3">desligada</span>'}</td></tr>
       </tbody></table>
+      <div class="campo-grupo mt">
+        <label for="sync-intervalo">Buscar novidades dos outros aparelhos</label>
+        <select id="sync-intervalo">
+          <option value="20"${sync.intervalo() === 20 ? ' selected' : ''}>A cada 20 segundos</option>
+          <option value="45"${sync.intervalo() === 45 ? ' selected' : ''}>A cada 45 segundos (recomendado)</option>
+          <option value="120"${sync.intervalo() === 120 ? ' selected' : ''}>A cada 2 minutos</option>
+          <option value="300"${sync.intervalo() === 300 ? ' selected' : ''}>A cada 5 minutos</option>
+          <option value="0"${sync.intervalo() === 0 ? ' selected' : ''}>Só quando eu mandar</option>
+        </select>
+        <div class="dica">Só roda com o app aberto e na frente. Consulta que não traz novidade
+          não conta no limite do GitHub, então intervalo curto não custa nada.</div>
+      </div>
       <div class="barra-botoes mt">
         <button class="btn btn-primario" data-acao="sincronizar">${icone('sincronizar', 16)} Sincronizar agora</button>
         <button class="btn" data-acao="config-sync">Alterar</button>
@@ -304,6 +319,13 @@ function ligar(raiz, redesenhar) {
   });
 
   // ---------------- sincronia ----------------
+
+  const selIntervalo = raiz.querySelector('#sync-intervalo');
+  if (selIntervalo) selIntervalo.addEventListener('change', async () => {
+    const s = await sync.definirIntervalo(selIntervalo.value);
+    toast(s > 0 ? `Vou buscar novidades a cada ${s} segundos.` : 'Atualização automática desligada.', 'ok');
+    redesenhar();
+  });
 
   liga(raiz, 'click', '[data-acao="sincronizar"]', async () => {
     try {

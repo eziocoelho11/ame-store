@@ -16,12 +16,16 @@ const API = 'https://api.github.com';
 let cfg = { repo: '', token: '', ramo: 'main' };
 let shas = {};           // caminho -> sha conhecido
 let ultima = null;
+let etagArvore = null;   // marca da ultima leitura da arvore, para consulta condicional
+let intervaloSegundos = 45;
 let emAndamento = null;
 
 export async function iniciar() {
   cfg = (await db.getMeta('sync.config')) || { repo: '', token: '', ramo: 'main' };
   shas = (await db.getMeta('sync.shas')) || {};
   ultima = await db.getMeta('sync.ultima');
+  etagArvore = await db.getMeta('sync.etag');
+  intervaloSegundos = (await db.getMeta('sync.intervalo')) || 45;
 }
 
 export function estadoSincronia() {
@@ -41,8 +45,11 @@ export async function salvarConfiguracao(nova) {
 export async function desligar() {
   cfg = { repo: '', token: '', ramo: 'main' };
   shas = {};
+  etagArvore = null;
+  if (temporizador) { clearInterval(temporizador); temporizador = null; }
   await db.setMeta('sync.config', cfg);
   await db.setMeta('sync.shas', shas);
+  await db.setMeta('sync.etag', null);
 }
 
 // ---------------- base64 com acento ----------------
@@ -66,17 +73,29 @@ function deBase64(b64) {
 
 // ---------------- chamadas a API ----------------
 
+/**
+ * Chamada a API do GitHub.
+ *
+ * `opcoes.etag` liga a consulta condicional: manda If-None-Match e, se nada
+ * mudou desde a ultima vez, o GitHub responde 304 com corpo vazio. Isso e' o
+ * que torna a consulta periodica barata — resposta 304 nao conta no limite de
+ * 5.000 chamadas por hora, e nao trafega o conteudo.
+ */
 async function api(caminho, opcoes = {}) {
+  const { etag, ...resto } = opcoes;
   const resp = await fetch(API + caminho, {
-    ...opcoes,
+    ...resto,
+    cache: 'no-store',
     headers: {
       'Authorization': 'Bearer ' + cfg.token,
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
+      ...(etag ? { 'If-None-Match': etag } : {}),
       ...(opcoes.body ? { 'Content-Type': 'application/json' } : {}),
       ...(opcoes.headers || {}),
     },
   });
+  if (resp.status === 304) return { naoModificado: true, status: 304 };
   if (resp.status === 404) return { naoExiste: true, status: 404 };
   if (!resp.ok) {
     let detalhe = '';
@@ -86,7 +105,12 @@ async function api(caminho, opcoes = {}) {
     throw erro;
   }
   if (resp.status === 204) return {};
-  return resp.json();
+  const dados = await resp.json();
+  const marca = resp.headers.get('ETag');
+  if (marca && dados && typeof dados === 'object') {
+    try { Object.defineProperty(dados, '_etag', { value: marca, enumerable: false }); } catch { /* congelado */ }
+  }
+  return dados;
 }
 
 function mensagemAmigavel(status, detalhe) {
@@ -143,7 +167,10 @@ function desserializar(texto) {
 async function puxar() {
   let arvore;
   try {
-    arvore = await api(`/repos/${cfg.repo}/git/trees/${encodeURIComponent(cfg.ramo)}?recursive=1`);
+    arvore = await api(
+      `/repos/${cfg.repo}/git/trees/${encodeURIComponent(cfg.ramo)}?recursive=1`,
+      { etag: etagArvore }
+    );
   } catch (err) {
     // Repositorio recem-criado, sem nenhum commit: o GitHub responde 409
     // "Git Repository is empty". Isso nao e' erro — e' so' nao haver nada a
@@ -151,7 +178,10 @@ async function puxar() {
     if (err.status === 409) return 0;
     throw err;
   }
+  // Nada mudou desde a ultima consulta: sai sem baixar nada e sem gastar cota.
+  if (arvore.naoModificado) return 0;
   if (arvore.naoExiste) return 0; // o ramo ainda nao existe
+  if (arvore._etag) { etagArvore = arvore._etag; await db.setMeta('sync.etag', etagArvore); }
 
   const arquivos = (arvore.tree || []).filter(
     (n) => n.type === 'blob' && n.path.startsWith('eventos/') && n.path.endsWith('.jsonl')
@@ -271,4 +301,76 @@ export function enviarPendentesRapido() {
 /** Numero de eventos ainda nao enviados — mostrado em Ajustes. */
 export async function pendentes() {
   return (await db.eventosPendentes()).length;
+}
+
+// ---------------- atualizacao automatica ----------------
+//
+// Nao existe "empurrar" sem servidor: o GitHub nao consegue acordar o celular
+// da loja. Entao quem quer saber, pergunta — de tempos em tempos, enquanto o
+// app estiver aberto e na frente.
+//
+// Perguntar sai barato porque a consulta e' condicional (ETag): se nada mudou,
+// o GitHub responde 304 com corpo vazio, e resposta 304 NAO conta no limite de
+// 5.000 chamadas por hora. Tres aparelhos perguntando a cada 45 segundos o dia
+// inteiro ficam muito abaixo do teto.
+//
+// Limite honesto: aparelho fechado nao sincroniza. PWA nao roda em segundo
+// plano, sobretudo no iPhone. Ele se atualiza no instante em que for aberto.
+
+let temporizador = null;
+let reagendarInterno = null;
+let rodarAtual = null;
+let ouvintesLigados = false;
+
+export function intervalo() { return intervaloSegundos; }
+
+export async function definirIntervalo(segundos) {
+  intervaloSegundos = Math.max(0, Number(segundos) || 0);
+  await db.setMeta('sync.intervalo', intervaloSegundos);
+  if (reagendarInterno) reagendarInterno();
+  return intervaloSegundos;
+}
+
+/**
+ * Liga a consulta periodica. `aoAtualizar(resultado)` e' chamado somente quando
+ * algo de fato entrou ou saiu — para a tela nao piscar aviso a toa.
+ *
+ * Chamar de novo nao empilha: o temporizador anterior e' descartado e os
+ * ouvintes de janela sao registrados uma unica vez. Sem isso, duas chamadas
+ * deixariam dois temporizadores rodando em paralelo, dobrando as consultas.
+ */
+export function ligarAtualizacaoAutomatica(aoAtualizar) {
+  const parar = () => { if (temporizador) { clearInterval(temporizador); temporizador = null; } };
+
+  const rodar = async () => {
+    if (!cfg.repo || !cfg.token) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    if (!navigator.onLine) return;
+    try {
+      const r = await sincronizar({});
+      if (aoAtualizar && r && (r.recebidos || r.enviados)) aoAtualizar(r);
+    } catch (err) {
+      console.warn('sincronia automática adiada:', err.message);
+    }
+  };
+
+  const reagendar = () => {
+    parar();
+    if (intervaloSegundos > 0) temporizador = setInterval(rodar, intervaloSegundos * 1000);
+  };
+  reagendarInterno = reagendar;
+
+  if (!ouvintesLigados) {
+    ouvintesLigados = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') { rodarAtual(); if (reagendarInterno) reagendarInterno(); }
+      else parar();   // fora da frente, nao gasta bateria nem cota
+    });
+    window.addEventListener('online', () => rodarAtual());
+    window.addEventListener('focus', () => rodarAtual());
+  }
+  rodarAtual = rodar;
+
+  reagendar();
+  return { parar, reagendar, rodarAgora: rodar };
 }

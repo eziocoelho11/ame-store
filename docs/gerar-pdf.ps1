@@ -310,7 +310,19 @@ $utf8 = New-Object System.Text.UTF8Encoding($true)
 
 # ---------------------------------------------------------------- imprimir
 
-if (Test-Path $Saida) { Remove-Item $Saida -Force }
+# Se o PDF estiver aberto num visualizador, o Windows trava o arquivo. Melhor
+# avisar isso em portugues do que estourar um erro cru de acesso negado.
+if (Test-Path $Saida) {
+  try { Remove-Item $Saida -Force -ErrorAction Stop }
+  catch {
+    Write-Host ""
+    Write-Host "  O arquivo abaixo esta aberto em algum programa e nao pode ser regravado:" -ForegroundColor Yellow
+    Write-Host ("  " + $Saida) -ForegroundColor Yellow
+    Write-Host "  Feche o PDF e rode este script de novo." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+  }
+}
 
 $uri = ([System.Uri]([System.IO.Path]::GetFullPath($arquivoHTML))).AbsoluteUri
 # Perfil temporario proprio: sem isso o Chrome ja' aberto trava o perfil e o
