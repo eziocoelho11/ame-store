@@ -282,11 +282,12 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
 }
 
 export function rotuloRecebivel(r) {
-  const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado' };
+  const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado',
+    loja: 'Venda na loja' };
   const base = nomes[r.tipo] || r.tipo;
   const parc = r.totalParcelas > 1 ? ` ${r.parcela}/${r.totalParcelas}` : '';
   // Saldo importado nao tem venda registrada aqui: identifica pela origem.
-  if (!r.vendaId) return `${base} — ${r.descricao || 'saldo importado'}`;
+  if (!r.vendaId) return r.descricao ? `${base} — ${r.descricao}` : base;
   return `${base}${parc} — venda #${r.numeroVenda}`;
 }
 

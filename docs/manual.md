@@ -104,6 +104,12 @@ meses atrás, e registrá-la de novo criaria faturamento no mês do vencimento,
 falseando a DRE e o medidor do teto do MEI. Na lista, esses lançamentos aparecem
 como "Fiado — planilha ago/26" em vez de "Fiado — venda #12".
 
+Venda presencial antiga importada da planilha usa o mesmo caminho, com o
+rótulo **"Venda na loja"** e já baixada na data em que aconteceu — ela entrou
+no caixa naquele dia. Serve para reconstruir o caixa do ano; ela também não
+vira venda, porque a planilha guarda o valor e a descrição, não as peças, e
+sem peça não há custo: a DRE mostraria margem de 100%.
+
 ### Receber
 Em **Financeiro › A receber** ficam as parcelas de cartão e os fiados em aberto.
 Quando o repasse da maquininha cair, selecione as parcelas e marque como recebidas.
