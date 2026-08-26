@@ -1,18 +1,59 @@
 // graficos.js — SVG gerado a mao. Sem Chart.js, sem D3: um grafico de barras e
 // um de linha nao justificam 300 KB de biblioteca que precisa de atualizacao.
 
-import { esc, brl } from '../core/fmt.js';
+import { esc, brl, num } from '../core/fmt.js';
 
 const L = 46;  // margem esquerda (rotulos de valor)
 const B = 22;  // margem inferior (rotulos do eixo x)
 const T = 10;
 
-function escala(max, min = 0) {
-  if (max === min) return { max: max || 1, min: min || 0 };
-  const amplitude = max - min;
-  const passo = Math.pow(10, Math.floor(Math.log10(amplitude || 1)));
-  const arredonda = (v, cima) => (cima ? Math.ceil(v / passo) : Math.floor(v / passo)) * passo;
-  return { max: arredonda(max, true), min: min < 0 ? arredonda(min, false) : 0 };
+const CEM_REAIS = 10000;  // dinheiro e' centavo inteiro: R$ 100,00 = 10000
+
+/**
+ * Passo da grade: sempre um multiplo redondo de R$ 100.
+ * Dividir a altura do grafico em tres partes iguais dava linha em R$ 1.333,33 —
+ * numero que ninguem le', so' suja o desenho. Aqui a escala se ajusta ao passo,
+ * e nao o contrario.
+ */
+function passoBonito(amplitude, alvoLinhas = 4) {
+  const desejado = Math.max(amplitude / alvoLinhas, CEM_REAIS);
+  const decada = Math.pow(10, Math.floor(Math.log10(desejado)));
+  // So' multiplicadores inteiros: com a decada valendo pelo menos R$ 100, o
+  // passo continua sendo centena cheia (nada de R$ 250).
+  for (const m of [1, 2, 5, 10]) {
+    const p = m * decada;
+    if (p >= desejado) return Math.max(Math.round(p / CEM_REAIS) * CEM_REAIS, CEM_REAIS);
+  }
+  return Math.max(Math.round(10 * decada / CEM_REAIS) * CEM_REAIS, CEM_REAIS);
+}
+
+function escala(maiorValor, menorValor = 0) {
+  const alto = Math.max(maiorValor, 0);
+  const baixo = Math.min(menorValor, 0);
+  let passo = passoBonito((alto - baixo) || CEM_REAIS);
+  let max = Math.ceil(alto / passo) * passo;
+  let min = Math.floor(baixo / passo) * passo;
+  if (max === min) max = min + passo;
+  // Cinturao de seguranca: se sobrar linha demais, dobra o passo ate' caber.
+  let guarda = 0;
+  while ((max - min) / passo > 8 && guarda++ < 12) {
+    passo *= 2;
+    max = Math.ceil(alto / passo) * passo;
+    min = Math.floor(baixo / passo) * passo;
+  }
+  return { max, min, passo };
+}
+
+/** Os valores onde a grade e' desenhada, do fundo para o topo. */
+function linhasDaGrade({ min, max, passo }) {
+  const out = [];
+  for (let v = min; v <= max + passo / 1000; v += passo) out.push(Math.round(v));
+  return out;
+}
+
+/** Rotulo do eixo: valor redondo nao precisa de centavo nem de "R$". */
+function rotuloEixo(centavos) {
+  return num(Math.round(centavos / 100));
 }
 
 /**
@@ -22,7 +63,8 @@ function escala(max, min = 0) {
 export function barras(dados, { altura = 190, formato = brl, largura = 640 } = {}) {
   if (!dados.length) return '';
   const valores = dados.map((d) => d.valor);
-  const { max, min } = escala(Math.max(0, ...valores), Math.min(0, ...valores));
+  const grade = escala(Math.max(0, ...valores), Math.min(0, ...valores));
+  const { max, min } = grade;
   const h = altura - T - B;
   const w = largura - L - 8;
   const y = (v) => T + h - ((v - min) / (max - min || 1)) * h;
@@ -30,11 +72,10 @@ export function barras(dados, { altura = 190, formato = brl, largura = 640 } = {
   const larguraBarra = Math.min(46, passoX * 0.62);
 
   let saida = `<svg class="grafico" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="height:${altura}px">`;
-  for (let i = 0; i <= 3; i++) {
-    const v = min + ((max - min) * i) / 3;
+  for (const v of linhasDaGrade(grade)) {
     const yy = y(v);
-    saida += `<line class="grade-linha" x1="${L}" x2="${largura - 4}" y1="${yy}" y2="${yy}"/>`;
-    saida += `<text x="${L - 6}" y="${yy + 3.5}" text-anchor="end">${esc(formato(v))}</text>`;
+    saida += `<line class="grade-linha${v === 0 && min < 0 ? ' grade-zero' : ''}" x1="${L}" x2="${largura - 4}" y1="${yy}" y2="${yy}"/>`;
+    saida += `<text x="${L - 6}" y="${yy + 3.5}" text-anchor="end">${esc(rotuloEixo(v))}</text>`;
   }
   dados.forEach((d, i) => {
     const cx = L + passoX * i + passoX / 2;
@@ -45,38 +86,6 @@ export function barras(dados, { altura = 190, formato = brl, largura = 640 } = {
       + `<title>${esc(d.rotulo)}: ${esc(formato(d.valor))}</title></rect>`;
     if (dados.length <= 14 || i % 2 === 0) {
       saida += `<text x="${cx}" y="${altura - 6}" text-anchor="middle">${esc(d.rotulo)}</text>`;
-    }
-  });
-  saida += '</svg>';
-  return saida;
-}
-
-/** Linha com area. dados = [{rotulo, valor}] */
-export function linha(dados, { altura = 180, formato = brl, largura = 640, marcarPontos = false } = {}) {
-  if (dados.length < 2) return barras(dados, { altura, formato, largura });
-  const valores = dados.map((d) => d.valor);
-  const { max, min } = escala(Math.max(...valores), Math.min(0, ...valores));
-  const h = altura - T - B;
-  const w = largura - L - 8;
-  const y = (v) => T + h - ((v - min) / (max - min || 1)) * h;
-  const x = (i) => L + (w / (dados.length - 1)) * i;
-
-  let saida = `<svg class="grafico" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="height:${altura}px">`;
-  for (let i = 0; i <= 3; i++) {
-    const v = min + ((max - min) * i) / 3;
-    const yy = y(v);
-    saida += `<line class="grade-linha" x1="${L}" x2="${largura - 4}" y1="${yy}" y2="${yy}"/>`;
-    saida += `<text x="${L - 6}" y="${yy + 3.5}" text-anchor="end">${esc(formato(v))}</text>`;
-  }
-  const pontos = dados.map((d, i) => `${x(i)},${y(d.valor)}`).join(' ');
-  saida += `<polygon class="area-g" points="${L},${y(min)} ${pontos} ${x(dados.length - 1)},${y(min)}"/>`;
-  saida += `<polyline class="linha-g" points="${pontos}"/>`;
-  dados.forEach((d, i) => {
-    if (marcarPontos || dados.length <= 14) {
-      saida += `<circle class="ponto-g" cx="${x(i)}" cy="${y(d.valor)}" r="3"><title>${esc(d.rotulo)}: ${esc(formato(d.valor))}</title></circle>`;
-    }
-    if (dados.length <= 14 || i % Math.ceil(dados.length / 8) === 0) {
-      saida += `<text x="${x(i)}" y="${altura - 6}" text-anchor="middle">${esc(d.rotulo)}</text>`;
     }
   });
   saida += '</svg>';
@@ -95,21 +104,20 @@ export function linhas(series, { altura = 210, formato = brl, largura = 640, sol
   const pontos = series[0] ? series[0].dados.length : 0;
   if (!pontos) return '';
   const todos = series.flatMap((s) => s.dados.map((d) => d.valor));
-  const { max, min } = escala(Math.max(0, ...todos), Math.min(0, ...todos));
+  const grade = escala(Math.max(0, ...todos), Math.min(0, ...todos));
+  const { max, min } = grade;
   const h = altura - T - B;
   const w = largura - L - 8;
   const y = (v) => T + h - ((v - min) / (max - min || 1)) * h;
   const x = (i) => (pontos === 1 ? L + w / 2 : L + (w / (pontos - 1)) * i);
 
   let saida = `<svg class="grafico" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="height:${altura}px">`;
-  for (let i = 0; i <= 3; i++) {
-    const v = min + ((max - min) * i) / 3;
+  // A linha do zero sai mais marcada: separa o mes que sobrou do que faltou.
+  for (const v of linhasDaGrade(grade)) {
     const yy = y(v);
-    saida += `<line class="grade-linha" x1="${L}" x2="${largura - 4}" y1="${yy}" y2="${yy}"/>`;
-    saida += `<text x="${L - 6}" y="${yy + 3.5}" text-anchor="end">${esc(formato(v))}</text>`;
+    saida += `<line class="grade-linha${v === 0 && min < 0 ? ' grade-zero' : ''}" x1="${L}" x2="${largura - 4}" y1="${yy}" y2="${yy}"/>`;
+    saida += `<text x="${L - 6}" y="${yy + 3.5}" text-anchor="end">${esc(rotuloEixo(v))}</text>`;
   }
-  // Linha do zero mais marcada: separa o mes que sobrou do mes que faltou.
-  if (min < 0) saida += `<line class="grade-zero" x1="${L}" x2="${largura - 4}" y1="${y(0)}" y2="${y(0)}"/>`;
 
   const corte = solidoAte === null ? pontos - 1 : Math.max(0, Math.min(pontos - 1, solidoAte));
   for (const s of series) {
