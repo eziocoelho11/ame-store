@@ -125,8 +125,10 @@ chega, mas só entra na DRE como CMV quando a peça é vendida.
 
 ### Fluxo de caixa mês a mês (na tela inicial)
 O quadro mostra doze meses: os **últimos 6** (este mês incluído) e os **6
-seguintes**. Barra cheia é o que já aconteceu; barra clara é previsão, e no
-quadro os meses de previsão vêm marcados com `*`.
+seguintes**, em três linhas — **entradas**, **saídas** e **saldo**. O trecho
+cheio é o que já aconteceu; do mês atual para a frente a linha vira
+**tracejada**, que é a previsão. Na tabela abaixo do gráfico, os meses de
+previsão vêm marcados com `*`.
 
 O que entra na previsão é só o que **já está contratado**: parcela de cartão e
 de fiado com vencimento marcado, e despesa lançada e ainda não paga. Nada é

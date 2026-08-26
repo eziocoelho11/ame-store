@@ -6,7 +6,7 @@ import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxo
 import { brl, esc, pct, num, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, limitesDaCompetencia, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, barra, liga , vista } from '../ui.js';
-import { barras as grafBarras } from '../graficos.js';
+import { barras as grafBarras, linhas as grafLinhas } from '../graficos.js';
 import { irPara } from '../router.js';
 
 export async function render(raiz) {
@@ -141,10 +141,18 @@ function html() {
  */
 function fluxoMensalHTML(fluxo) {
   const meses = fluxo.meses;
-  const serie = meses.map((m) => ({
-    rotulo: competenciaCurta(m.comp), valor: m.saldo,
-    destaque: m.corrente, previsto: m.futuro,
-  }));
+  const rotulos = meses.map((m) => competenciaCurta(m.comp));
+  const serie = (nome, cor, campo) => ({
+    nome, cor, dados: meses.map((m, i) => ({ rotulo: rotulos[i], valor: m[campo] })),
+  });
+  const series = [
+    serie('Entradas', 'var(--verde)', 'entradasTotal'),
+    serie('Saídas', 'var(--vermelho)', 'saidasTotal'),
+    serie('Saldo', 'var(--roxo)', 'saldo'),
+  ];
+  // A linha vira tracejada a partir do mes corrente: dali para a frente e' o que
+  // esta' contratado, nao o que aconteceu.
+  const solidoAte = meses.findIndex((m) => m.corrente);
   const soma = (lista, campo) => lista.reduce((s, m) => s + m[campo], 0);
   const futuros = meses.filter((m) => m.futuro);
   const corrente = meses.find((m) => m.corrente);
@@ -157,11 +165,11 @@ function fluxoMensalHTML(fluxo) {
   <div class="cartao">
     <div class="cartao-cabecalho">
       <div class="crescer"><h3>Fluxo de caixa mês a mês</h3>
-        <div class="texto-2 pequeno">os últimos 6 meses e os 6 próximos · barra clara é previsão</div></div>
+        <div class="texto-2 pequeno">os últimos 6 meses e os 6 próximos · trecho tracejado é previsão</div></div>
       <button class="btn btn-p" data-ir="/financeiro">Detalhar</button>
     </div>
 
-    ${grafBarras(serie, { formato: (v) => brl(v).replace('R$ ', '') })}
+    ${grafLinhas(series, { solidoAte, formato: (v) => brl(v).replace('R$ ', '') })}
 
     <div class="rolagem-x mt"><table>
       <thead><tr><th></th>
