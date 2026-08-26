@@ -289,6 +289,25 @@ export function baixarRecebivel(recebivelId, forma, data) {
   return log.registrar('recebivel.baixado', { recebivelId, forma: forma || '', data: data || iso() });
 }
 
+/**
+ * Lanca um saldo a receber que veio de fora — tipicamente a planilha de fiado
+ * anterior ao app. Nao cria venda, nao mexe no estoque e nao entra como receita
+ * na DRE: e' divida velha entrando no controle, nao venda nova.
+ * importarRecebivel({clienteId, valor, vencimento, descricao, tipo, origem})
+ */
+export function importarRecebivel(dados) {
+  return log.registrar('recebivel.importado', {
+    id: novoId(),
+    clienteId: dados.clienteId || null,
+    valor: dados.valor || 0,
+    vencimento: dados.vencimento,
+    data: dados.data || dados.vencimento,
+    tipo: dados.tipo || 'fiado',
+    descricao: dados.descricao || '',
+    origem: dados.origem || 'importado',
+  });
+}
+
 export function estornarRecebivel(recebivelId) {
   return log.registrar('recebivel.estornado', { recebivelId });
 }

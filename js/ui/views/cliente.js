@@ -71,7 +71,7 @@ function html(clienteId) {
     <h3>Fiado em aberto</h3>
     <div class="lista">${emAberto.map((r) => `
       <div class="item" style="cursor:default">
-        <div class="corpo"><div class="titulo">Venda #${r.numeroVenda}</div>
+        <div class="corpo"><div class="titulo">${r.vendaId ? 'Venda #' + r.numeroVenda : esc(r.descricao || 'Saldo importado')}</div>
           <div class="sub">vence ${dataBR(r.vencimento)} ${r.vencimento < iso() ? tag('vencido', 'erro') : ''}</div></div>
         <div class="valor">${brl(r.liquido)}<small><button class="btn btn-p" data-baixar="${esc(r.id)}">Recebi</button></small></div>
       </div>`).join('')}</div>

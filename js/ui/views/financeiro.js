@@ -86,7 +86,9 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
       const vencido = !recebidos && r.vencimento < hoje;
       return `<tr>
         ${recebidos ? '' : `<td><input type="checkbox" data-sel="${esc(r.id)}"${selecionados.has(r.id) ? ' checked' : ''}></td>`}
-        <td><a href="#/venda/${esc(r.vendaId)}">${esc(rotuloRecebivel(r))}</a>
+        <td>${r.vendaId
+          ? `<a href="#/venda/${esc(r.vendaId)}">${esc(rotuloRecebivel(r))}</a>`
+          : esc(rotuloRecebivel(r))}
           ${cliente ? `<br><span class="texto-3 pequeno">${esc(cliente)}</span>` : ''}</td>
         <td>${dataBR(recebidos ? r.recebidoEm : r.vencimento)} ${vencido ? tag('vencido', 'erro') : ''}</td>
         <td class="dir num">${brl(r.bruto)}</td>

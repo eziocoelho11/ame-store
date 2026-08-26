@@ -96,6 +96,14 @@ Marque **fixa** (existe mesmo sem vender) ou **variável** (acompanha a venda) �
 Despesa marcada como "repete todo mês" pode ser copiada para o mês seguinte com
 o botão **Repetir recorrentes**.
 
+### Saldo a receber importado
+Fiado que nasceu **fora do app** — a planilha que a loja usava antes — entra como
+*saldo a receber importado*: aparece em A receber, na previsão por mês e no saldo
+em fiado da cliente, mas **não vira venda**. É de propósito: a venda aconteceu
+meses atrás, e registrá-la de novo criaria faturamento no mês do vencimento,
+falseando a DRE e o medidor do teto do MEI. Na lista, esses lançamentos aparecem
+como "Fiado — planilha ago/26" em vez de "Fiado — venda #12".
+
 ### Receber
 Em **Financeiro › A receber** ficam as parcelas de cartão e os fiados em aberto.
 Quando o repasse da maquininha cair, selecione as parcelas e marque como recebidas.

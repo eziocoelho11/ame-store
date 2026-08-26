@@ -202,6 +202,25 @@ export function aplicar(e, ev) {
       }
       break;
     }
+    /**
+     * Saldo a receber que nasceu FORA do app — a planilha de fiado que a loja
+     * usava antes. Nao e' venda: a venda aconteceu meses atras e o que sobrou e'
+     * a divida. Por isso este evento cria o recebivel direto, sem mexer em
+     * estoque e sem lancar receita na DRE. Lancar como venda nova inventaria
+     * faturamento no mes do vencimento e falsearia o teto do MEI.
+     */
+    case 'recebivel.importado': {
+      const valor = d.valor || 0;
+      e.recebiveis[d.id] = {
+        id: d.id, vendaId: null, numeroVenda: null, clienteId: d.clienteId || null,
+        tipo: d.tipo || 'fiado', bandeira: '', parcela: 1, totalParcelas: 1,
+        bruto: valor, taxaPct: 0, taxa: 0, liquido: valor,
+        vencimento: d.vencimento, data: d.data || d.vencimento,
+        status: 'aberto', recebidoEm: null, formaRecebimento: null,
+        origem: d.origem || 'importado', descricao: d.descricao || '',
+      };
+      break;
+    }
     case 'recebivel.estornado': {
       const r = e.recebiveis[d.recebivelId];
       if (r) { r.status = 'aberto'; r.recebidoEm = null; }

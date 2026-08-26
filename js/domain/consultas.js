@@ -280,6 +280,8 @@ export function rotuloRecebivel(r) {
   const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado' };
   const base = nomes[r.tipo] || r.tipo;
   const parc = r.totalParcelas > 1 ? ` ${r.parcela}/${r.totalParcelas}` : '';
+  // Saldo importado nao tem venda registrada aqui: identifica pela origem.
+  if (!r.vendaId) return `${base} — ${r.descricao || 'saldo importado'}`;
   return `${base}${parc} — venda #${r.numeroVenda}`;
 }
 
