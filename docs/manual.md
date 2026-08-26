@@ -143,6 +143,13 @@ Duas leituras que evitam susto:
   Enquanto você não usar "Repetir recorrentes" em Despesas, a previsão de saída
   fica menor do que a realidade e o saldo previsto parece melhor do que é.
 
+Logo abaixo dele fica **Resultado de caixa — últimos 6 meses**: quanto sobrou ou
+faltou de dinheiro em cada um dos seis meses, contando **só o que entrou e saiu
+de verdade**. É a diferença entre os dois quadros — o de cima mistura realizado
+com previsão, este não admite previsão nenhuma. Barra para baixo é mês em que
+saiu mais do que entrou; uma compra grande de mercadoria derruba o mês inteiro,
+mesmo com as peças paradas no estoque esperando venda.
+
 ### Custo médio ponderado
 Cada entrada recalcula o custo médio da peça. Se você comprou 10 a R$ 50 e depois
 10 a R$ 60, o custo médio vira R$ 55 — e é esse valor que a venda seguinte usa

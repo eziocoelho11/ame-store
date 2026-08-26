@@ -39,17 +39,19 @@ function html() {
   const serieDia = receitaPorDia(e, inicio, hoje < fim ? hoje : fim)
     .map((d) => ({ rotulo: d.data.slice(8), valor: d.valor, destaque: d.data === hoje }));
 
-  const seis = ultimasCompetencias(comp, 6);
-  const serieMes = seis.map((c) => {
-    const d = calcularDRE(e, c);
-    return { rotulo: competenciaCurta(c), valor: d.resultado, destaque: c === comp };
-  });
-
   // 12 colunas: os ultimos 6 meses (este incluido) e os 6 seguintes. Contar o
   // mes corrente como um dos seis e' a mesma convencao do card "Resultado dos
   // ultimos 6 meses", logo abaixo — dois cards vizinhos com contagem diferente
   // confundiriam mais do que a coluna a mais ajudaria.
   const fluxo = fluxoCaixaMensal(e, { hoje, antes: 5, depois: 6 });
+
+  // Resultado de CAIXA dos ultimos 6 meses: so' o que entrou e saiu de verdade.
+  // Diferente do quadro de cima, que mistura realizado com previsto — aqui nao
+  // entra nada que ainda pode nao acontecer.
+  const seisCaixa = fluxo.meses.filter((m) => !m.futuro).map((m) => ({
+    rotulo: competenciaCurta(m.comp), valor: m.entradas - m.saidas, destaque: m.corrente,
+  }));
+  const caixaAcumulado = seisCaixa.reduce((s, m) => s + m.valor, 0);
 
   const semVendas = Object.keys(e.vendas).length === 0;
 
@@ -100,9 +102,17 @@ function html() {
   ${fluxoMensalHTML(fluxo)}
 
   <div class="cartao">
-    <h3>Resultado dos últimos 6 meses</h3>
-    ${grafBarras(serieMes, { formato: (v) => brl(v).replace('R$ ', '') })}
-    <p class="dica">Resultado é lucro (regime de competência). Caixa é o quadro acima — os dois só coincidem por acaso.</p>
+    <div class="cartao-cabecalho">
+      <div class="crescer"><h3>Resultado de caixa — últimos 6 meses</h3>
+        <div class="texto-2 pequeno">quanto sobrou (ou faltou) de dinheiro em cada mês</div></div>
+      <div class="kpi" style="min-width:150px"><div class="rotulo-kpi">Somando os 6</div>
+        <div class="valor-kpi ${caixaAcumulado < 0 ? 'negativo' : ''}">${brl(caixaAcumulado)}</div></div>
+    </div>
+    ${grafBarras(seisCaixa, { formato: (v) => brl(v).replace('R$ ', '') })}
+    <p class="dica">Só o que entrou e saiu <strong>de verdade</strong> — diferente do quadro acima, aqui não entra
+      nada previsto. Barra para baixo é mês em que saiu mais dinheiro do que entrou; compra grande de mercadoria
+      derruba o mês inteiro, mesmo que as peças ainda estejam no estoque para vender.
+      Para ver se a loja dá <em>lucro</em>, que é outra pergunta, veja a <a href="#/dre">DRE</a>.</p>
   </div>`}
 
   <div class="grade grade-2">
