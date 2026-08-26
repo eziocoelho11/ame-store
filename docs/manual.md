@@ -124,7 +124,7 @@ A compra de mercadoria mostra bem isso: sai do caixa no dia em que a mercadoria
 chega, mas só entra na DRE como CMV quando a peça é vendida.
 
 ### Fluxo de caixa mês a mês (na tela inicial)
-O quadro mostra treze meses: os **6 anteriores**, o mês corrente e os **6
+O quadro mostra doze meses: os **últimos 6** (este mês incluído) e os **6
 seguintes**. Barra cheia é o que já aconteceu; barra clara é previsão, e no
 quadro os meses de previsão vêm marcados com `*`.
 

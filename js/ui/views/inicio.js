@@ -42,7 +42,11 @@ function html() {
     return { rotulo: competenciaCurta(c), valor: d.resultado, destaque: c === comp };
   });
 
-  const fluxo = fluxoCaixaMensal(e, { hoje, antes: 6, depois: 6 });
+  // 12 colunas: os ultimos 6 meses (este incluido) e os 6 seguintes. Contar o
+  // mes corrente como um dos seis e' a mesma convencao do card "Resultado dos
+  // ultimos 6 meses", logo abaixo — dois cards vizinhos com contagem diferente
+  // confundiriam mais do que a coluna a mais ajudaria.
+  const fluxo = fluxoCaixaMensal(e, { hoje, antes: 5, depois: 6 });
 
   const semVendas = Object.keys(e.vendas).length === 0;
 
@@ -125,7 +129,7 @@ function html() {
 }
 
 /**
- * Fluxo de caixa mes a mes: 6 meses atras, o mes corrente e 6 a' frente.
+ * Fluxo de caixa mes a mes: 12 colunas, os ultimos 6 meses e os 6 seguintes.
  * O passado e' o que aconteceu; o futuro e' so' o que ja' esta' contratado —
  * parcela com vencimento marcado e despesa lancada. Nada e' estimado por
  * semelhanca com o mes passado, e a nota no pe' diz isso em voz alta, porque
@@ -149,7 +153,7 @@ function fluxoMensalHTML(fluxo) {
   <div class="cartao">
     <div class="cartao-cabecalho">
       <div class="crescer"><h3>Fluxo de caixa mês a mês</h3>
-        <div class="texto-2 pequeno">6 meses atrás, este mês e os 6 próximos · barra clara é previsão</div></div>
+        <div class="texto-2 pequeno">os últimos 6 meses e os 6 próximos · barra clara é previsão</div></div>
       <button class="btn btn-p" data-ir="/financeiro">Detalhar</button>
     </div>
 
