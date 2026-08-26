@@ -88,8 +88,9 @@ function mesHTML(e, d) {
       </tbody>
     </table>
     <p class="dica mt">
-      Regime de competência: a venda entra no mês em que aconteceu, mesmo que o dinheiro do cartão caia depois.
-      Para saber quando o dinheiro entra, veja o <a href="#/financeiro">Financeiro</a>.
+      Regime de competência: a venda entra no mês em que aconteceu, mesmo que o dinheiro do cartão caia depois
+      ou que o fiado tenha sido parcelado em 6×. Parcelar não muda o resultado do mês — muda quando o dinheiro
+      entra. Para isso, veja o <a href="#/financeiro">Financeiro</a>.
     </p>
   </div>
 

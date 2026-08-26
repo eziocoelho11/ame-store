@@ -75,7 +75,10 @@ troco e não conta a diferença como receita.
 
 - **Dinheiro e PIX** entram no caixa na hora.
 - **Débito e crédito** viram parcelas a receber, já com a taxa descontada.
-- **Fiado** exige um cliente selecionado na venda.
+- **Fiado** exige um cliente selecionado na venda. Dá para parcelar em até 12×:
+  escolha o número de parcelas e a data do **1º vencimento** — as seguintes caem
+  de mês em mês, no mesmo dia, sem juros e sem taxa. Cada parcela vira uma linha
+  em Financeiro › A receber e no saldo em fiado da cliente.
 
 Leitor de código de barras USB funciona sem configuração: ele digita e dá Enter,
 e o app entende. Pela câmera, use o botão **Ler código**.
@@ -96,6 +99,12 @@ o botão **Repetir recorrentes**.
 ### Receber
 Em **Financeiro › A receber** ficam as parcelas de cartão e os fiados em aberto.
 Quando o repasse da maquininha cair, selecione as parcelas e marque como recebidas.
+
+A tabela **Previsão de entrada por mês**, no topo dessa aba, mostra quanto ainda
+tem para entrar em cada um dos próximos seis meses, separando cartão de fiado.
+É onde o fiado parcelado aparece antes de o mês chegar. Parcela vencida aparece
+no mês atual, porque é dinheiro que já deveria ter entrado. Previsão não é caixa:
+o valor só entra no fluxo de caixa quando a parcela é baixada.
 
 ---
 

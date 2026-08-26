@@ -2,7 +2,7 @@
 // A DRE diz se a loja da' lucro; esta tela diz se tem dinheiro na conta.
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
-import { recebiveis, aReceber, fluxoCaixa, rotuloRecebivel } from '../../domain/consultas.js';
+import { recebiveis, aReceber, aReceberPorMes, fluxoCaixa, rotuloRecebivel } from '../../domain/consultas.js';
 import { brl, esc, iso, dataBR, dataCurta, competencia, limitesDaCompetencia, competenciaBR, somaDias } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, tag, vazio, paraCSV, csvMoeda, baixarArquivo, confirmar , vista } from '../ui.js';
@@ -73,6 +73,8 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
     <button class="btn btn-p btn-primario" data-acao="baixar-lote">Marcar como recebidas</button>
     <button class="btn btn-p" data-acao="limpar-selecao">Limpar</button></div></div>` : ''}
 
+  ${!recebidos ? previsaoHTML(e, hoje) : ''}
+
   ${lista.length ? `<div class="cartao"><div class="rolagem-x"><table>
     <thead><tr>
       ${recebidos ? '' : '<th style="width:34px"></th>'}
@@ -100,6 +102,30 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
   </table></div></div>`
     : vazio('dinheiro', recebidos ? 'Nada recebido no período' : 'Nada a receber',
       recebidos ? 'Ajuste as datas acima.' : 'Toda venda no dinheiro ou PIX já entra como recebida.')}`;
+}
+
+/**
+ * Previsao de entrada por mes. Uma venda no fiado em 4x vira dinheiro em quatro
+ * meses diferentes: sem esta tabela, isso so' aparece quando o mes chega.
+ */
+function previsaoHTML(e, hoje) {
+  const meses = aReceberPorMes(e, { hoje, meses: 6 });
+  if (!meses.length) return '';
+  return `<div class="cartao">
+    <h3>Previsão de entrada por mês</h3>
+    <div class="rolagem-x"><table>
+      <thead><tr><th>Mês</th><th class="dir">Cartão</th><th class="dir">Fiado</th>
+        <th class="dir">Parcelas</th><th class="dir">Total</th></tr></thead>
+      <tbody>${meses.map((m) => `<tr>
+        <td>${esc(competenciaBR(m.comp))}
+          ${m.vencido ? tag('vencido ' + brl(m.vencido), 'erro') : ''}</td>
+        <td class="dir num">${m.cartao ? brl(m.cartao) : '—'}</td>
+        <td class="dir num">${m.fiado ? brl(m.fiado) : '—'}</td>
+        <td class="dir num texto-3">${m.n}</td>
+        <td class="dir num negrito">${brl(m.total)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="dica">Valores líquidos, já sem a taxa da maquininha. Parcela vencida aparece no mês atual — é dinheiro que já deveria ter entrado. Isto é previsão: só vira caixa quando a parcela for baixada.</p>
+  </div>`;
 }
 
 function fluxoHTML(fluxo) {
@@ -188,5 +214,5 @@ function ligar(raiz, redesenhar) {
     toast('Arquivo gerado.', 'ok');
   });
 
-  void irPara; void somaDias; void competenciaBR;
+  void irPara; void somaDias;
 }

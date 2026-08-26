@@ -149,6 +149,22 @@ export function somaMeses(comp, meses) {
   return ano + '-' + String(mes).padStart(2, '0');
 }
 
+/**
+ * Soma meses a uma data "AAAA-MM-DD" mantendo o dia do mes.
+ * Quando o mes de destino e' mais curto, gruda no ultimo dia dele:
+ * 31/01 + 1 mes = 28/02 (e nao 03/03). E' assim que a cliente entende
+ * "todo dia 31" quando o mes nao tem dia 31.
+ */
+export function somaMesesData(dataIso, meses) {
+  const [a, m, d] = String(dataIso).slice(0, 10).split('-').map(Number);
+  const total = a * 12 + (m - 1) + meses;
+  const ano = Math.floor(total / 12);
+  const mes = (total % 12) + 1;
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const dia = Math.min(d, ultimoDia);
+  return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
 /** Primeiro e ultimo dia de uma competencia "AAAA-MM". */
 export function limitesDaCompetencia(comp) {
   const [a, m] = comp.split('-').map(Number);

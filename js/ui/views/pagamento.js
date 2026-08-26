@@ -2,7 +2,7 @@
 // credito em 3x nao e' caixa hoje, e o app precisa saber disso.
 import * as log from '../../core/eventlog.js';
 import { taxaPara } from '../../core/state.js';
-import { brl, esc, iso, somaDias, paraCentavos, dataBR, dividirCentavos, aplicaPct } from '../../core/fmt.js';
+import { brl, esc, iso, somaDias, somaMesesData, paraCentavos, dataBR, dividirCentavos, aplicaPct } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { abrirModal, toast, liga , vista } from '../ui.js';
 
@@ -49,7 +49,7 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
           try {
             await aoConfirmar(linhas.map((l) => ({
               forma: l.forma, valor: l.valor,
-              parcelas: l.forma === 'credito' ? l.parcelas : 1,
+              parcelas: (l.forma === 'credito' || l.forma === 'fiado') ? l.parcelas : 1,
               bandeira: l.bandeira || '',
               vencimento: l.forma === 'fiado' ? l.vencimento : undefined,
             })));
@@ -90,10 +90,10 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
       <div class="linha mt">
         <div class="campo-grupo"><label>Valor</label>
           <input inputmode="decimal" data-valor="${i}" value="${(l.valor / 100).toFixed(2).replace('.', ',')}"></div>
-        ${l.forma === 'credito' ? `<div class="campo-grupo"><label>Parcelas</label>
+        ${l.forma === 'credito' || l.forma === 'fiado' ? `<div class="campo-grupo"><label>Parcelas</label>
           <select data-parcelas="${i}">${Array.from({ length: 12 }, (_, k) => k + 1).map((n) =>
             `<option value="${n}"${l.parcelas === n ? ' selected' : ''}>${n}x</option>`).join('')}</select></div>` : ''}
-        ${l.forma === 'fiado' ? `<div class="campo-grupo"><label>Vencimento</label>
+        ${l.forma === 'fiado' ? `<div class="campo-grupo"><label>${(l.parcelas || 1) > 1 ? '1º vencimento' : 'Vencimento'}</label>
           <input type="date" data-vencimento="${i}" value="${esc(l.vencimento)}"></div>` : ''}
         ${l.forma === 'debito' || l.forma === 'credito' ? `<div class="campo-grupo"><label>Bandeira</label>
           <input data-bandeira="${i}" value="${esc(l.bandeira || '')}" placeholder="opcional"></div>` : ''}
@@ -103,7 +103,32 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
             · primeira parcela em ${dataBR(somaDias(iso(), regra.prazoDias || 30))}
             ${!regra.taxaPct ? '<br><strong>Taxa não configurada</strong> — ajuste em Ajustes › Taxas da maquininha.' : ''}</div>`
         : ''}
+      ${l.forma === 'fiado' ? `<div class="dica">${agendaFiadoHTML(l)}</div>` : ''}
     </div>`;
+  }
+
+  /**
+   * Mostra na hora da venda como o fiado vai cair no caixa. Fiado nao tem taxa:
+   * o que muda com a parcela e' QUANDO o dinheiro entra, nao quanto entra.
+   */
+  function agendaFiadoHTML(l) {
+    const n = Math.max(1, l.parcelas || 1);
+    const base = l.vencimento || somaDias(iso(), 30);
+    const valores = dividirCentavos(l.valor, n);
+    if (n === 1) return `Entra no caixa em ${dataBR(base)}. Sem taxa.`;
+    const venc = (i) => dataBR(somaMesesData(base, i));
+    // O resto da divisao vai para as primeiras parcelas — podem ser varias,
+    // entao o texto tem que dizer quantas, ou o numero na tela nao bate.
+    const maior = valores[0], menor = valores[n - 1];
+    const nMaior = valores.filter((v) => v === maior).length;
+    const resumo = maior === menor
+      ? `${n}× de ${brl(maior)}`
+      : `${n}× — ${nMaior === 1 ? 'a 1ª' : `as ${nMaior} primeiras`} de ${brl(maior)}`
+        + ` e ${n - nMaior === 1 ? 'a última' : 'as demais'} de ${brl(menor)}`;
+    const datas = n <= 4
+      ? valores.map((v, i) => venc(i)).join(' · ')
+      : `${venc(0)} · ${venc(1)} · … · ${venc(n - 1)}`;
+    return `${resumo}, de mês em mês. Sem taxa.<br>Vencimentos: ${datas}`;
   }
 
   function resumoHTML() {
@@ -161,7 +186,11 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     desenhar();
   });
   liga(raiz, 'change', '[data-bandeira]', (ev, el) => { linhas[Number(el.dataset.bandeira)].bandeira = el.value; });
-  liga(raiz, 'change', '[data-vencimento]', (ev, el) => { linhas[Number(el.dataset.vencimento)].vencimento = el.value; });
+  liga(raiz, 'change', '[data-vencimento]', (ev, el) => {
+    const i = Number(el.dataset.vencimento);
+    linhas[i].vencimento = el.value || somaDias(iso(), 30);
+    desenhar();
+  });
 
   desenhar();
   return m;

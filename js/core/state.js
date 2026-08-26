@@ -11,7 +11,7 @@
 // atrasada de outro aparelho, o replay corrige o CMV das vendas seguintes
 // sozinho. E' o que realmente aconteceu no estoque.
 
-import { aplicaPct, dividirCentavos, somaDias, competencia } from './fmt.js';
+import { aplicaPct, dividirCentavos, somaDias, somaMesesData, competencia } from './fmt.js';
 
 export const CONFIG_PADRAO = {
   loja: { nome: 'AME Store', cnpj: '', telefone: '', endereco: '' },
@@ -351,7 +351,8 @@ function registrarVenda(e, ev, d) {
   let taxasTotais = 0;
   (d.pagamentos || []).forEach((pg, idxPg) => {
     const forma = pg.forma;
-    const nParcelas = forma === 'credito' ? Math.max(1, pg.parcelas || 1) : 1;
+    // Credito e fiado parcelam; dinheiro, PIX e debito entram de uma vez so'.
+    const nParcelas = (forma === 'credito' || forma === 'fiado') ? Math.max(1, pg.parcelas || 1) : 1;
     const regra = taxaPara(e.config, forma, nParcelas);
     const taxaPct = (pg.taxaPct === undefined || pg.taxaPct === null) ? regra.taxaPct : pg.taxaPct;
     const prazoDias = (pg.prazoDias === undefined || pg.prazoDias === null) ? regra.prazoDias : pg.prazoDias;
@@ -361,8 +362,10 @@ function registrarVenda(e, ev, d) {
       const taxa = aplicaPct(valorParcela, taxaPct);
       taxasTotais += taxa;
       const imediato = (forma === 'dinheiro' || forma === 'pix');
+      // Fiado: a 1a parcela vence na data combinada e as seguintes caem de mes
+      // em mes, no mesmo dia. Cartao segue o prazo de repasse da maquininha.
       const vencimento = forma === 'fiado'
-        ? (pg.vencimento || d.data)
+        ? somaMesesData(pg.vencimento || d.data, i)
         : imediato ? d.data : somaDias(d.data, (prazoDias || 30) * (i + 1));
       const rid = d.id + '#' + idxPg + '#' + (i + 1);
       e.recebiveis[rid] = {

@@ -126,6 +126,34 @@ export function aReceber(estado, hoje = iso()) {
 }
 
 /**
+ * O que ainda esta' em aberto, somado por mes de vencimento. E' a previsao de
+ * caixa: com fiado parcelado e cartao a prazo, o dinheiro de uma venda de hoje
+ * se espalha por varios meses, e essa e' a unica tela que mostra isso antes de
+ * acontecer. Vencido entra na primeira coluna, porque e' dinheiro que ja'
+ * deveria ter entrado.
+ */
+export function aReceberPorMes(estado, { hoje = iso(), meses = 6 } = {}) {
+  const abertos = recebiveis(estado, { status: 'aberto' });
+  const compAtual = hoje.slice(0, 7);
+  const linhas = new Map();
+  const linha = (comp) => {
+    if (!linhas.has(comp)) linhas.set(comp, { comp, cartao: 0, fiado: 0, vencido: 0, total: 0, n: 0 });
+    return linhas.get(comp);
+  };
+  for (const r of abertos) {
+    // Parcela vencida nao fica escondida num mes passado: aparece no mes atual.
+    const comp = r.vencimento < hoje ? compAtual : r.vencimento.slice(0, 7);
+    const l = linha(comp);
+    if (r.tipo === 'fiado') l.fiado += r.liquido; else l.cartao += r.liquido;
+    if (r.vencimento < hoje) l.vencido += r.liquido;
+    l.total += r.liquido;
+    l.n++;
+  }
+  const lista = [...linhas.values()].sort((a, b) => a.comp.localeCompare(b.comp));
+  return meses > 0 ? lista.slice(0, meses) : lista;
+}
+
+/**
  * Fluxo de caixa em REGIME DE CAIXA: entra quando o dinheiro cai, sai quando a
  * despesa e' paga. E' de proposito diferente da DRE.
  */

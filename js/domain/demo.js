@@ -92,7 +92,7 @@ export async function carregarDemonstracao() {
       else if (sorte < 0.45) pagamentos = [{ forma: 'dinheiro', valor: total }];
       else if (sorte < 0.65) pagamentos = [{ forma: 'debito', valor: total }];
       else if (sorte < 0.92) pagamentos = [{ forma: 'credito', valor: total, parcelas: 1 + Math.floor(r() * 3) }];
-      else pagamentos = [{ forma: 'fiado', valor: total, vencimento: somaDias(data, 30) }];
+      else pagamentos = [{ forma: 'fiado', valor: total, parcelas: 1 + Math.floor(r() * 3), vencimento: somaDias(data, 30) }];
 
       const comCliente = pagamentos[0].forma === 'fiado' || r() > 0.6;
       await acoes.registrarVenda({
