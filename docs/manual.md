@@ -132,8 +132,7 @@ A compra de mercadoria mostra bem isso: sai do caixa no dia em que a mercadoria
 chega, mas só entra na DRE como CMV quando a peça é vendida.
 
 ### Fluxo de caixa mês a mês (na tela inicial)
-O quadro mostra doze meses: os **últimos 6** (este mês incluído) e os **6
-seguintes**, em três linhas — **entradas**, **saídas** e **saldo**. O trecho
+O quadro mostra o **ano corrente inteiro, de janeiro a dezembro**, em três linhas — **entradas**, **saídas** e **saldo**. O trecho
 cheio é o que já aconteceu; do mês atual para a frente a linha vira
 **tracejada**, que é a previsão. Na tabela abaixo do gráfico, os meses de
 previsão vêm marcados com `*`.

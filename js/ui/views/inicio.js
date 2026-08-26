@@ -39,16 +39,15 @@ function html() {
   const serieDia = receitaPorDia(e, inicio, hoje < fim ? hoje : fim)
     .map((d) => ({ rotulo: d.data.slice(8), valor: d.valor, destaque: d.data === hoje }));
 
-  // 12 colunas: os ultimos 6 meses (este incluido) e os 6 seguintes. Contar o
-  // mes corrente como um dos seis e' a mesma convencao do card "Resultado dos
-  // ultimos 6 meses", logo abaixo — dois cards vizinhos com contagem diferente
-  // confundiriam mais do que a coluna a mais ajudaria.
-  const fluxo = fluxoCaixaMensal(e, { hoje, antes: 5, depois: 6 });
+  // O ano corrente inteiro, de janeiro a dezembro: e' o exercicio que fecha na
+  // contabilidade e na planilha da loja.
+  const fluxo = fluxoCaixaMensal(e, { hoje, ano: Number(comp.slice(0, 4)) });
 
   // Resultado de CAIXA dos ultimos 6 meses: so' o que entrou e saiu de verdade.
   // Diferente do quadro de cima, que mistura realizado com previsto — aqui nao
-  // entra nada que ainda pode nao acontecer.
-  const seisCaixa = fluxo.meses.filter((m) => !m.futuro).map((m) => ({
+  // entra nada que ainda pode nao acontecer. Consulta propria, para o card nao
+  // mudar de tamanho junto com a janela do fluxo anual.
+  const seisCaixa = fluxoCaixaMensal(e, { hoje, antes: 5, depois: 0 }).meses.map((m) => ({
     rotulo: competenciaCurta(m.comp), valor: m.entradas - m.saidas, destaque: m.corrente,
   }));
   const caixaAcumulado = seisCaixa.reduce((s, m) => s + m.valor, 0);
@@ -143,7 +142,7 @@ function html() {
 }
 
 /**
- * Fluxo de caixa mes a mes: 12 colunas, os ultimos 6 meses e os 6 seguintes.
+ * Fluxo de caixa mes a mes: o ano corrente inteiro, de janeiro a dezembro.
  * O passado e' o que aconteceu; o futuro e' so' o que ja' esta' contratado —
  * parcela com vencimento marcado e despesa lancada. Nada e' estimado por
  * semelhanca com o mes passado, e a nota no pe' diz isso em voz alta, porque
@@ -175,7 +174,7 @@ function fluxoMensalHTML(fluxo) {
   <div class="cartao">
     <div class="cartao-cabecalho">
       <div class="crescer"><h3>Fluxo de caixa mês a mês</h3>
-        <div class="texto-2 pequeno">os últimos 6 meses e os 6 próximos · trecho tracejado é previsão</div></div>
+        <div class="texto-2 pequeno">janeiro a dezembro de ${esc(fluxo.meses[0].comp.slice(0, 4))} · trecho tracejado é previsão</div></div>
       <button class="btn btn-p" data-ir="/financeiro">Detalhar</button>
     </div>
 

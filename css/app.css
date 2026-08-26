@@ -254,6 +254,22 @@ hr { border: 0; border-top: 1px solid var(--borda); margin: 1rem 0; }
 .fab svg { width: 26px; height: 26px; }
 @media (min-width: 900px) { .fab { bottom: 1.5rem; right: 1.5rem; } }
 
+/* Barra de seleção múltipla. Flutua em cima do conteúdo de propósito: se ela
+   entrasse no meio da página, a lista inteira desceria ao marcar a primeira
+   parcela e o segundo toque cairia na linha errada. */
+.barra-selecao {
+  position: fixed; z-index: 46; left: .8rem; right: .8rem;
+  bottom: calc(var(--nav-b) + env(safe-area-inset-bottom) + .8rem);
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .7rem .9rem; border-radius: var(--r-g);
+  background: var(--superficie); border: 1px solid var(--borda-forte);
+  box-shadow: var(--sombra-alta);
+}
+.barra-selecao .crescer { min-width: 130px; }
+@media (min-width: 900px) {
+  .barra-selecao { left: calc(var(--nav-l) + 1.5rem); right: 1.5rem; bottom: 1.5rem; }
+}
+
 /* ---------------- formularios ---------------- */
 
 .campo-grupo { margin-bottom: .8rem; }
@@ -272,7 +288,21 @@ input:focus, select:focus, textarea:focus {
   outline: 2px solid color-mix(in srgb, var(--roxo) 45%, transparent); outline-offset: 1px;
   border-color: var(--roxo);
 }
-input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--roxo); }
+/* O `appearance: none` acima existe para o campo de texto. Em caixa de seleção
+   ele apaga o desenho nativo: o clique funciona, o estado muda e a tela não
+   mostra nada — pior do que não funcionar, porque parece defeito. Aqui a
+   aparência volta, com tamanho de dedo e a cor da loja. */
+input[type="checkbox"], input[type="radio"] {
+  appearance: auto; -webkit-appearance: auto;
+  width: 20px; height: 20px; min-width: 20px; flex: none;
+  padding: 0; border: 0; border-radius: 0; background: none;
+  accent-color: var(--roxo); cursor: pointer;
+}
+/* Área de toque decente ao redor da caixinha, para marcar no celular sem erro. */
+.marca {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 40px; min-height: 44px; margin: -.5rem 0; cursor: pointer;
+}
 select {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236E6570' stroke-width='1.7' stroke-linecap='round'/></svg>");
   background-repeat: no-repeat; background-position: right .7rem center; padding-right: 2rem;

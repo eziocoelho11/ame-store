@@ -218,15 +218,20 @@ export function fluxoCaixa(estado, de, ate) {
  * Conta vencida e ainda em aberto cai no mes corrente, nao no mes em que
  * venceu: e' dinheiro que ainda esta' na mesa hoje.
  */
-export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6 } = {}) {
+export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, ano = null } = {}) {
   const compAtual = competencia(hoje);
-  const primeiro = somaMeses(compAtual, -antes);
-  const ultimo = somaMeses(compAtual, depois);
+  // `ano` mostra o exercicio fechado, de janeiro a dezembro — e' assim que o
+  // ano se fecha na contabilidade e na planilha da loja. Sem ele, a janela
+  // anda junto com o mes corrente.
+  const comps = ano
+    ? Array.from({ length: 12 }, (_, i) => `${ano}-${String(i + 1).padStart(2, '0')}`)
+    : Array.from({ length: antes + depois + 1 }, (_, i) => somaMeses(compAtual, i - antes));
+  const primeiro = comps[0];
+  const ultimo = comps[comps.length - 1];
   const meses = new Map();
-  for (let i = -antes; i <= depois; i++) {
-    const comp = somaMeses(compAtual, i);
+  for (const comp of comps) {
     meses.set(comp, {
-      comp, futuro: i > 0, corrente: i === 0,
+      comp, futuro: comp > compAtual, corrente: comp === compAtual,
       entradas: 0, saidas: 0, entradasPrevistas: 0, saidasPrevistas: 0,
     });
   }

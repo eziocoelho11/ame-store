@@ -55,10 +55,6 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
       .sort((a, b) => b.recebidoEm.localeCompare(a.recebidoEm))
     : recebiveis(e, { status: 'aberto' });
 
-  const selecionadoTotal = [...selecionados]
-    .map((id) => e.recebiveis[id]).filter(Boolean)
-    .reduce((s, r) => s + r.liquido, 0);
-
   return `
   ${recebidos ? `<div class="filtros">
     <div class="campo-grupo"><label>De</label><input type="date" data-de value="${periodo.de}"></div>
@@ -68,10 +64,7 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
       <div class="valor-kpi">${brl(totalRecebido)}</div></div>
   </div>` : ''}
 
-  ${!recebidos && selecionados.size ? `<div class="aviso aviso-info">${icone('info')}
-    <div><strong>${selecionados.size} parcela(s) selecionada(s) — ${brl(selecionadoTotal)}.</strong>
-    <button class="btn btn-p btn-primario" data-acao="baixar-lote">Marcar como recebidas</button>
-    <button class="btn btn-p" data-acao="limpar-selecao">Limpar</button></div></div>` : ''}
+  ${!recebidos ? '<div id="fin-selecao"></div>' : ''}
 
   ${!recebidos ? previsaoHTML(e, hoje) : ''}
 
@@ -85,7 +78,7 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
       const cliente = r.clienteId && e.clientes[r.clienteId] ? e.clientes[r.clienteId].nome : '';
       const vencido = !recebidos && r.vencimento < hoje;
       return `<tr>
-        ${recebidos ? '' : `<td><input type="checkbox" data-sel="${esc(r.id)}"${selecionados.has(r.id) ? ' checked' : ''}></td>`}
+        ${recebidos ? '' : `<td><label class="marca"><input type="checkbox" data-sel="${esc(r.id)}"${selecionados.has(r.id) ? ' checked' : ''}></label></td>`}
         <td>${r.vendaId
           ? `<a href="#/venda/${esc(r.vendaId)}">${esc(rotuloRecebivel(r))}</a>`
           : esc(rotuloRecebivel(r))}
@@ -168,8 +161,29 @@ function fluxoHTML(fluxo) {
     : vazio('dinheiro', 'Sem movimento no período', 'Ajuste as datas acima.')}`;
 }
 
+/**
+ * Desenha a barra de selecao — e' o unico pedaco que muda quando o usuario
+ * marca uma parcela. Redesenhar a tela inteira a cada clique fazia a lista
+ * inteira pular, e o segundo toque caia na linha errada.
+ */
+function pintarSelecao(raiz) {
+  const alvo = raiz.querySelector('#fin-selecao');
+  if (!alvo) return;
+  if (!selecionados.size) { alvo.innerHTML = ''; return; }
+  const e = log.estado();
+  const total = [...selecionados].map((id) => e.recebiveis[id]).filter(Boolean)
+    .reduce((s, r) => s + r.liquido, 0);
+  alvo.innerHTML = `<div class="barra-selecao">
+    <div class="crescer"><strong>${selecionados.size} parcela(s)</strong>
+      <div class="texto-2 pequeno">${brl(total)} líquidos</div></div>
+    <button class="btn btn-p btn-primario" data-acao="baixar-lote">Marcar como recebidas</button>
+    <button class="btn btn-p" data-acao="limpar-selecao">Limpar</button>
+  </div>`;
+}
+
 function ligar(raiz, redesenhar) {
   const e = log.estado();
+  pintarSelecao(raiz);
 
   liga(raiz, 'click', '[data-aba]', (ev, el) => { aba = el.dataset.aba; selecionados.clear(); redesenhar(); });
   liga(raiz, 'change', '[data-de]', (ev, el) => { periodo.de = el.value; redesenhar(); });
@@ -177,9 +191,13 @@ function ligar(raiz, redesenhar) {
 
   liga(raiz, 'change', '[data-sel]', (ev, el) => {
     if (el.checked) selecionados.add(el.dataset.sel); else selecionados.delete(el.dataset.sel);
-    redesenhar();
+    pintarSelecao(raiz);
   });
-  liga(raiz, 'click', '[data-acao="limpar-selecao"]', () => { selecionados.clear(); redesenhar(); });
+  liga(raiz, 'click', '[data-acao="limpar-selecao"]', () => {
+    selecionados.clear();
+    for (const c of raiz.querySelectorAll('[data-sel]')) c.checked = false;
+    pintarSelecao(raiz);
+  });
 
   liga(raiz, 'click', '[data-acao="baixar-lote"]', async () => {
     const ids = [...selecionados];
@@ -189,8 +207,12 @@ function ligar(raiz, redesenhar) {
       `${ids.length} parcela(s), ${brl(total)} líquidos, entram no caixa de hoje (${dataBR(iso())}).`,
       { textoOk: 'Marcar' });
     if (!ok) return;
-    await acoes.baixarVarios(ids, '', iso());
+    // Limpa a selecao ANTES de gravar: a gravacao dispara o redesenho da tela,
+    // e ele precisa encontrar a selecao ja' vazia, senao a barra fica na tela
+    // anunciando parcelas que acabaram de ser baixadas.
     selecionados.clear();
+    pintarSelecao(raiz);
+    await acoes.baixarVarios(ids, '', iso());
     toast(`${ids.length} recebimento(s) baixado(s).`, 'ok');
   });
 
