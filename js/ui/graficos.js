@@ -40,9 +40,12 @@ export function barras(dados, { altura = 190, formato = brl, largura = 640 } = {
     const cx = L + passoX * i + passoX / 2;
     const y0 = y(0), y1 = y(d.valor);
     const topo = Math.min(y0, y1), alturaBarra = Math.max(1.5, Math.abs(y1 - y0));
+    // Barra de valor previsto vem mais apagada: o olho precisa separar num a
+    // hora o que ja' aconteceu do que ainda pode nao acontecer.
+    const opacidade = d.destaque ? '1' : d.previsto ? '.42' : '.82';
     saida += `<rect class="barra-g${d.valor < 0 ? ' neg' : ''}" x="${cx - larguraBarra / 2}" y="${topo}" `
-      + `width="${larguraBarra}" height="${alturaBarra}" rx="3"${d.destaque ? ' opacity="1"' : ' opacity=".82"'}>`
-      + `<title>${esc(d.rotulo)}: ${esc(formato(d.valor))}</title></rect>`;
+      + `width="${larguraBarra}" height="${alturaBarra}" rx="3" opacity="${opacidade}">`
+      + `<title>${esc(d.rotulo)}: ${esc(formato(d.valor))}${d.previsto ? ' (previsto)' : ''}</title></rect>`;
     if (dados.length <= 14 || i % 2 === 0) {
       saida += `<text x="${cx}" y="${altura - 6}" text-anchor="middle">${esc(d.rotulo)}</text>`;
     }

@@ -2,7 +2,7 @@
 // tenho quanto para receber, e falta comprar o que.
 import * as log from '../../core/eventlog.js';
 import { calcularDRE, faturamento12Meses } from '../../domain/dre.js';
-import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia } from '../../domain/consultas.js';
+import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxoCaixaMensal } from '../../domain/consultas.js';
 import { brl, esc, pct, num, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, limitesDaCompetencia, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, barra, liga , vista } from '../ui.js';
@@ -41,6 +41,8 @@ function html() {
     const d = calcularDRE(e, c);
     return { rotulo: competenciaCurta(c), valor: d.resultado, destaque: c === comp };
   });
+
+  const fluxo = fluxoCaixaMensal(e, { hoje, antes: 6, depois: 6 });
 
   const semVendas = Object.keys(e.vendas).length === 0;
 
@@ -87,9 +89,12 @@ function html() {
     ${grafLinha(serieDia, { formato: (v) => brl(v).replace('R$ ', '') })}
   </div>
 
+  ${fluxoMensalHTML(fluxo)}
+
   <div class="cartao">
     <h3>Resultado dos últimos 6 meses</h3>
     ${grafBarras(serieMes, { formato: (v) => brl(v).replace('R$ ', '') })}
+    <p class="dica">Resultado é lucro (regime de competência). Caixa é o quadro acima — os dois só coincidem por acaso.</p>
   </div>`}
 
   <div class="grade grade-2">
@@ -116,6 +121,66 @@ function html() {
         </div>`).join('')}</div>`
         : '<p class="texto-3 pequeno">Nenhuma venda neste mês ainda.</p>'}
     </div>
+  </div>`;
+}
+
+/**
+ * Fluxo de caixa mes a mes: 6 meses atras, o mes corrente e 6 a' frente.
+ * O passado e' o que aconteceu; o futuro e' so' o que ja' esta' contratado —
+ * parcela com vencimento marcado e despesa lancada. Nada e' estimado por
+ * semelhanca com o mes passado, e a nota no pe' diz isso em voz alta, porque
+ * previsao de saida incompleta engana para o lado otimista.
+ */
+function fluxoMensalHTML(fluxo) {
+  const meses = fluxo.meses;
+  const serie = meses.map((m) => ({
+    rotulo: competenciaCurta(m.comp), valor: m.saldo,
+    destaque: m.corrente, previsto: m.futuro,
+  }));
+  const soma = (lista, campo) => lista.reduce((s, m) => s + m[campo], 0);
+  const futuros = meses.filter((m) => m.futuro);
+  const corrente = meses.find((m) => m.corrente);
+  // "Realizado" conta so' o que ja' entrou e saiu de verdade — o previsto do mes
+  // corrente fica de fora, senao o numero promete dinheiro que ainda nao chegou.
+  const realizado = meses.filter((m) => !m.futuro).reduce((s, m) => s + m.entradas - m.saidas, 0);
+  const cel = (v, classe) => `<td class="dir num ${classe || ''}">${v ? brl(v).replace('R$ ', '') : '—'}</td>`;
+
+  return `
+  <div class="cartao">
+    <div class="cartao-cabecalho">
+      <div class="crescer"><h3>Fluxo de caixa mês a mês</h3>
+        <div class="texto-2 pequeno">6 meses atrás, este mês e os 6 próximos · barra clara é previsão</div></div>
+      <button class="btn btn-p" data-ir="/financeiro">Detalhar</button>
+    </div>
+
+    ${grafBarras(serie, { formato: (v) => brl(v).replace('R$ ', '') })}
+
+    <div class="rolagem-x mt"><table>
+      <thead><tr><th></th>
+        ${meses.map((m) => `<th class="dir ${m.futuro ? 'texto-3' : ''}">${esc(competenciaCurta(m.comp))}${m.futuro || m.temPrevisto ? '*' : ''}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        <tr><td class="texto-2">Entra</td>${meses.map((m) => cel(m.entradasTotal, 'positivo')).join('')}</tr>
+        <tr><td class="texto-2">Sai</td>${meses.map((m) => cel(m.saidasTotal, 'negativo')).join('')}</tr>
+        <tr><td class="negrito">Saldo</td>${meses.map((m) => cel(m.saldo, 'negrito' + (m.saldo < 0 ? ' negativo' : ''))).join('')}</tr>
+      </tbody>
+    </table></div>
+
+    <div class="flex entre pequeno mt quebra gap-g">
+      <span class="texto-2">Realizado até hoje
+        <strong class="num ${realizado < 0 ? 'negativo' : ''}">${brl(realizado)}</strong></span>
+      ${corrente && corrente.temPrevisto ? `<span class="texto-2">Ainda este mês · entra
+        <strong class="num">${brl(corrente.entradasPrevistas)}</strong> · sai
+        <strong class="num">${brl(corrente.saidasPrevistas)}</strong></span>` : ''}
+      <span class="texto-2">Próximos 6 meses · entra
+        <strong class="num">${brl(soma(futuros, 'entradasTotal'))}</strong> · sai
+        <strong class="num">${brl(soma(futuros, 'saidasTotal'))}</strong></span>
+    </div>
+
+    <p class="dica">* Previsão: parcelas de cartão e de fiado com vencimento marcado, mais despesas já lançadas e ainda não pagas.
+      Conta vencida e ainda em aberto aparece no mês atual, não no mês em que venceu.
+      <strong>As despesas fixas dos meses à frente só entram depois de lançadas</strong> — enquanto você não usar
+      "Repetir recorrentes" em <a href="#/despesas">Despesas</a>, a previsão de saída fica menor do que a realidade.</p>
   </div>`;
 }
 

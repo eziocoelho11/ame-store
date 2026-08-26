@@ -123,6 +123,24 @@ duas. Por isso as duas telas existem separadas.
 A compra de mercadoria mostra bem isso: sai do caixa no dia em que a mercadoria
 chega, mas só entra na DRE como CMV quando a peça é vendida.
 
+### Fluxo de caixa mês a mês (na tela inicial)
+O quadro mostra treze meses: os **6 anteriores**, o mês corrente e os **6
+seguintes**. Barra cheia é o que já aconteceu; barra clara é previsão, e no
+quadro os meses de previsão vêm marcados com `*`.
+
+O que entra na previsão é só o que **já está contratado**: parcela de cartão e
+de fiado com vencimento marcado, e despesa lançada e ainda não paga. Nada é
+estimado por semelhança com o mês passado — previsão inventada é pior do que
+previsão faltando, porque parece informação.
+
+Duas leituras que evitam susto:
+
+- **Conta vencida e ainda em aberto aparece no mês atual**, não no mês em que
+  venceu. É dinheiro que ainda está na mesa hoje.
+- **As despesas fixas dos meses à frente só aparecem depois de lançadas.**
+  Enquanto você não usar "Repetir recorrentes" em Despesas, a previsão de saída
+  fica menor do que a realidade e o saldo previsto parece melhor do que é.
+
 ### Custo médio ponderado
 Cada entrada recalcula o custo médio da peça. Se você comprou 10 a R$ 50 e depois
 10 a R$ 60, o custo médio vira R$ 55 — e é esse valor que a venda seguinte usa

@@ -1,6 +1,6 @@
 // consultas.js — leituras derivadas do estado. Nenhuma escreve nada.
 
-import { normaliza, limitesDaCompetencia, iso, somaDias } from '../core/fmt.js';
+import { normaliza, limitesDaCompetencia, iso, somaDias, competencia, somaMeses } from '../core/fmt.js';
 import { nomeVariante, precoDaVariante } from '../core/state.js';
 
 // ---------------- catalogo e estoque ----------------
@@ -201,6 +201,79 @@ export function fluxoCaixa(estado, de, ate) {
     saidas: lista.reduce((s, d) => s + d.saidas, 0),
     saldo: acumulado,
   };
+}
+
+/**
+ * Fluxo de caixa mes a mes, olhando para tras e para a frente.
+ *
+ * O passado e o mes corrente sao o que JA' aconteceu: parcela baixada, despesa
+ * paga, compra de mercadoria. O futuro e' o que ja' esta' CONTRATADO — parcela
+ * de cartao e de fiado com vencimento marcado, despesa lancada e ainda nao
+ * paga. Nada e' estimado por semelhanca com o mes passado: previsao inventada
+ * e' pior do que previsao faltando, porque parece informacao.
+ *
+ * Por isso a saida separa `realizado` de `previsto` em cada mes — o mes
+ * corrente costuma ter os dois, e quem le precisa saber qual e' qual.
+ *
+ * Conta vencida e ainda em aberto cai no mes corrente, nao no mes em que
+ * venceu: e' dinheiro que ainda esta' na mesa hoje.
+ */
+export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6 } = {}) {
+  const compAtual = competencia(hoje);
+  const primeiro = somaMeses(compAtual, -antes);
+  const ultimo = somaMeses(compAtual, depois);
+  const meses = new Map();
+  for (let i = -antes; i <= depois; i++) {
+    const comp = somaMeses(compAtual, i);
+    meses.set(comp, {
+      comp, futuro: i > 0, corrente: i === 0,
+      entradas: 0, saidas: 0, entradasPrevistas: 0, saidasPrevistas: 0,
+    });
+  }
+  // Fora da janela nao entra: empurrar o historico todo para a primeira coluna
+  // faria uma barra gigante que nao quer dizer nada.
+  const balde = (data) => meses.get(String(data || '').slice(0, 7)) || null;
+  // O que venceu e nao foi pago/recebido continua pendurado no mes corrente.
+  const baldePendente = (data) => {
+    const comp = String(data || '').slice(0, 7);
+    return comp < compAtual ? meses.get(compAtual) : meses.get(comp) || null;
+  };
+
+  for (const r of Object.values(estado.recebiveis)) {
+    if (r.status === 'recebido' && r.recebidoEm) {
+      const m = balde(r.recebidoEm);
+      if (m) m.entradas += r.liquido;
+    } else if (r.status === 'aberto') {
+      const m = baldePendente(r.vencimento);
+      if (m) m.entradasPrevistas += r.liquido;
+    }
+  }
+  for (const d of Object.values(estado.despesas)) {
+    const data = d.dataPagto || d.data;
+    const m = d.pago ? balde(data) : baldePendente(data);
+    if (!m) continue;
+    if (d.pago) m.saidas += d.valor; else m.saidasPrevistas += d.valor;
+  }
+  for (const im of Object.values(estado.impostos)) {
+    const m = im.pago ? balde(im.data) : baldePendente(im.data);
+    if (!m) continue;
+    if (im.pago) m.saidas += im.valor; else m.saidasPrevistas += im.valor;
+  }
+  // Compra de mercadoria sai do caixa no dia da entrada no estoque.
+  for (const mov of estado.movimentos) {
+    if (mov.tipo !== 'entrada') continue;
+    const m = balde(mov.data);
+    if (m) m.saidas += mov.qtd * mov.custoUnit;
+  }
+
+  const lista = [...meses.values()].sort((a, b) => a.comp.localeCompare(b.comp));
+  for (const m of lista) {
+    m.entradasTotal = m.entradas + m.entradasPrevistas;
+    m.saidasTotal = m.saidas + m.saidasPrevistas;
+    m.saldo = m.entradasTotal - m.saidasTotal;
+    m.temPrevisto = (m.entradasPrevistas + m.saidasPrevistas) > 0;
+  }
+  return { meses: lista, de: primeiro, ate: ultimo, compAtual };
 }
 
 export function rotuloRecebivel(r) {
