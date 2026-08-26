@@ -6,7 +6,7 @@ import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxo
 import { brl, esc, pct, num, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, limitesDaCompetencia, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, barra, liga , vista } from '../ui.js';
-import { linha as grafLinha, barras as grafBarras } from '../graficos.js';
+import { barras as grafBarras } from '../graficos.js';
 import { irPara } from '../router.js';
 
 export async function render(raiz) {
@@ -33,8 +33,11 @@ function html() {
   const usoTeto = teto > 0 ? (acumulado12 / teto) * 100 : 0;
 
   const { inicio, fim } = limitesDaCompetencia(comp);
+  // Uma coluna por dia. Linha ligaria os dias como se a venda fosse continua;
+  // venda e' evento solto, e dia sem venda tem que aparecer como coluna vazia,
+  // nao como um trecho descendo ate' o zero e voltando.
   const serieDia = receitaPorDia(e, inicio, hoje < fim ? hoje : fim)
-    .map((d) => ({ rotulo: d.data.slice(8), valor: d.valor }));
+    .map((d) => ({ rotulo: d.data.slice(8), valor: d.valor, destaque: d.data === hoje }));
 
   const seis = ultimasCompetencias(comp, 6);
   const serieMes = seis.map((c) => {
@@ -90,7 +93,8 @@ function html() {
   </div>` : `
   <div class="cartao">
     <h3>Vendas do mês</h3>
-    ${grafLinha(serieDia, { formato: (v) => brl(v).replace('R$ ', '') })}
+    ${grafBarras(serieDia, { formato: (v) => brl(v).replace('R$ ', '') })}
+    <div class="legenda"><span>Uma coluna por dia · a coluna cheia é hoje · dia sem coluna é dia sem venda.</span></div>
   </div>
 
   ${fluxoMensalHTML(fluxo)}
