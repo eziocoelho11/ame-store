@@ -137,6 +137,12 @@ duas. Por isso as duas telas existem separadas.
 A compra de mercadoria mostra bem isso: sai do caixa no dia em que a mercadoria
 chega, mas só entra na DRE como CMV quando a peça é vendida.
 
+### O "Resultado do mês" da tela inicial é caixa
+A caixinha **Resultado do mês** mostra o que entrou menos o que saiu de verdade
+no mês — regime de caixa. É o número que responde *sobrou dinheiro?*, e por isso
+fica no alto da tela. O resultado por competência, que responde *a loja deu
+lucro?*, está na DRE. Os dois costumam ser diferentes, e os dois estão certos.
+
 ### Fluxo de caixa mês a mês (na tela inicial)
 O quadro mostra o **ano corrente inteiro, de janeiro a dezembro**, em três linhas — **entradas**, **saídas** e **saldo**. O trecho
 cheio é o que já aconteceu; do mês atual para a frente a linha vira

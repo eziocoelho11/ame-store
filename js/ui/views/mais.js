@@ -2,7 +2,7 @@
 import * as log from '../../core/eventlog.js';
 import * as sync from '../../core/sync.js';
 import { brl, iso, competencia } from '../../core/fmt.js';
-import { calcularDRE } from '../../domain/dre.js';
+import { fluxoCaixaMensal } from '../../domain/consultas.js';
 import { icone } from '../icones.js';
 import { liga, toast , vista } from '../ui.js';
 import { irPara } from '../router.js';
@@ -24,7 +24,11 @@ export async function render(raiz) {
 
 function html() {
   const e = log.estado();
-  const d = calcularDRE(e, competencia(iso()));
+  const hoje = iso();
+  // Mesmo numero da caixinha da tela inicial: regime de caixa, nao competencia.
+  const mes = fluxoCaixaMensal(e, { hoje, ano: Number(competencia(hoje).slice(0, 4)) })
+    .meses.find((m) => m.corrente);
+  const resultadoCaixa = mes ? mes.entradas - mes.saidas : 0;
   const s = sync.estadoSincronia();
 
   return `
@@ -36,7 +40,7 @@ function html() {
       </div>
       <div style="text-align:right">
         <div class="texto-2 pequeno">Resultado do mês</div>
-        <div class="negrito" style="font-size:1.2rem">${brl(d.resultado)}</div>
+        <div class="negrito" style="font-size:1.2rem">${brl(resultadoCaixa)}</div>
       </div>
     </div>
   </div>

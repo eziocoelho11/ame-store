@@ -44,6 +44,14 @@ function html() {
   // contabilidade e na planilha da loja.
   const fluxo = fluxoCaixaMensal(e, { hoje, ano: Number(comp.slice(0, 4)) });
 
+  // A caixinha "Resultado do mes" e' regime de CAIXA: entrou menos saiu de
+  // verdade, sem previsto. O resultado por competencia (lucro) continua na DRE —
+  // sao perguntas diferentes, e a que o dono olha todo dia e' a do dinheiro.
+  const caixaDoMes = fluxo.meses.find((m) => m.corrente);
+  const entradasDoMes = caixaDoMes ? caixaDoMes.entradas : 0;
+  const saidasDoMes = caixaDoMes ? caixaDoMes.saidas : 0;
+  const resultadoCaixa = entradasDoMes - saidasDoMes;
+
   // Resultado de CAIXA dos ultimos 6 meses: so' o que entrou e saiu de verdade.
   // Diferente do quadro de cima, que mistura realizado com previsto — aqui nao
   // entra nada que ainda pode nao acontecer. Consulta propria, para o card nao
@@ -65,8 +73,8 @@ function html() {
   <div class="grade grade-3 mb">
     ${kpi('Faturamento do mês', brl(dre.receitaBruta),
       `${dre.nVendas} ${dre.nVendas === 1 ? 'venda' : 'vendas'} · ${competenciaBR(comp)}`, 'destaque')}
-    ${kpi('Resultado do mês', brl(dre.resultado),
-      dre.margemLiquida === null ? 'sem vendas ainda' : 'margem líquida ' + pct(dre.margemLiquida),
+    ${kpi('Resultado do mês', brl(resultadoCaixa),
+      `caixa · entrou ${brl(entradasDoMes)} · saiu ${brl(saidasDoMes)}`,
       '')}
     ${kpi('Hoje', brl(receitaHoje), `${vendasHoje.length} ${vendasHoje.length === 1 ? 'venda' : 'vendas'}`)}
     ${kpi('A receber', brl(receber.total),
