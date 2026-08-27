@@ -8,6 +8,7 @@ import { liga, toast , vista } from '../ui.js';
 import { irPara } from '../router.js';
 
 const ITENS = [
+  ['/metas', 'raio', 'Metas', 'Meta de vendas do mês e provisões'],
   ['/vendas', 'recibo', 'Vendas', 'Histórico, devoluções e cancelamentos'],
   ['/clientes', 'pessoas', 'Clientes', 'Cadastro, histórico e fiado'],
   ['/despesas', 'documento', 'Despesas', 'O que sai, fixo e variável'],

@@ -32,6 +32,10 @@ export const CONFIG_PADRAO = {
   ],
   categoriasProduto: ['Vestidos', 'Blusas', 'Calças', 'Saias', 'Shorts', 'Conjuntos',
     'Casacos e jaquetas', 'Macacões', 'Lingerie', 'Moda praia', 'Acessórios', 'Calçados', 'Bolsas'],
+  // Metas da loja. Nascem vazias de proposito: meta e' decisao do dono, e uma
+  // meta chutada pelo app viraria cobranca sem sentido. `vendasPorMes` sobrepoe
+  // `vendasPadrao` no mes que tiver numero proprio.
+  metas: { vendasPadrao: 0, vendasPorMes: {}, provisoes: [] },
   categoriasDespesa: [
     { nome: 'Aluguel', tipo: 'fixa' },
     { nome: 'Energia', tipo: 'fixa' },

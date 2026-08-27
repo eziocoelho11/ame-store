@@ -273,6 +273,17 @@ export function aviso(tipo, titulo, texto = '', acaoHTML = '') {
 }
 
 /** Barra de progresso com cor por faixa de uso. */
+/**
+ * Barra de meta: o preenchido e' o que ja' foi, o vazio e' o que falta.
+ * Diferente de `barra`, onde encher e' ruim (teto do MEI): aqui encher e' o
+ * objetivo, entao a cor vai de roxo para verde quando a meta e' batida.
+ */
+export function barraMeta(pct, batida = false) {
+  const p = Math.max(0, Math.min(100, pct || 0));
+  return `<div class="barra-meta${batida ? ' batida' : ''}" role="progressbar"
+    aria-valuenow="${Math.round(p)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${p}%"></span></div>`;
+}
+
 export function barra(pct, limites = [70, 90]) {
   const p = Math.max(0, Math.min(100, pct));
   const cls = p >= limites[1] ? 'perigo' : p >= limites[0] ? 'atencao' : '';

@@ -299,7 +299,7 @@ input[type="checkbox"], input[type="radio"] {
   accent-color: var(--roxo); cursor: pointer;
 }
 /* Área de toque decente ao redor da caixinha, para marcar no celular sem erro. */
-.marca {
+.caixa-toque {
   display: flex; align-items: center; justify-content: center;
   min-width: 40px; min-height: 44px; margin: -.5rem 0; cursor: pointer;
 }
@@ -412,6 +412,40 @@ tfoot td { font-weight: 650; border-top: 2px solid var(--borda-forte); border-bo
 .barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width .4s; }
 .barra.atencao > span { background: var(--ambar); }
 .barra.perigo > span { background: var(--vermelho); }
+
+/* ---------------- metas ---------------- */
+
+.barra-meta { height: 14px; border-radius: 999px; background: var(--superficie-3); overflow: hidden; }
+.barra-meta > span {
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--roxo); transition: width .5s ease;
+}
+.barra-meta.batida > span { background: var(--verde); }
+tr.destaque-linha td { background: var(--roxo-suave); }
+
+/* Meta batida muda a cara do cartao inteiro — e' o "ânimo" pedido: dá para ver
+   do outro lado da loja que o mês fechou. */
+.cartao.meta-batida, .kpi.meta-batida {
+  border-color: var(--verde); background: var(--verde-suave);
+}
+.selo-meta {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .25rem .65rem; border-radius: 999px;
+  background: var(--verde); color: var(--superficie);
+  font-size: .78rem; font-weight: 650; white-space: nowrap;
+}
+@keyframes pulso-meta {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+.selo-meta.pulsa { animation: pulso-meta 1.6s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .selo-meta.pulsa { animation: none; } }
+
+.meta-numeros { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: .55rem; }
+.meta-numeros > div { min-width: 96px; }
+.meta-numeros .rotulo { font-size: .72rem; color: var(--texto-3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em; }
+.meta-numeros .valor { font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 
 /* ---------------- modal / folha ---------------- */
 

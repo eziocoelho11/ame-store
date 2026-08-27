@@ -2,10 +2,11 @@
 // tenho quanto para receber, e falta comprar o que.
 import * as log from '../../core/eventlog.js';
 import { calcularDRE, faturamento12Meses } from '../../domain/dre.js';
-import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxoCaixaMensal } from '../../domain/consultas.js';
+import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxoCaixaMensal,
+  resumoMeta } from '../../domain/consultas.js';
 import { brl, esc, pct, num, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, limitesDaCompetencia, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
-import { kpi, barra, liga , vista } from '../ui.js';
+import { kpi, barra, barraMeta, liga , vista } from '../ui.js';
 import { barras as grafBarras, linhas as grafLinhas } from '../graficos.js';
 import { irPara } from '../router.js';
 
@@ -54,8 +55,12 @@ function html() {
 
   const semVendas = Object.keys(e.vendas).length === 0;
 
+  const meta = resumoMeta(e, comp);
+
   return `
   ${avisos(e, dre, receber, hoje)}
+
+  ${metaHTML(meta)}
 
   <div class="grade grade-3 mb">
     ${kpi('Faturamento do mês', brl(dre.receitaBruta),
@@ -137,6 +142,34 @@ function html() {
           <div class="valor">${brl(v.totais.liquido)}</div>
         </div>`).join('')}</div>`
         : '<p class="texto-3 pequeno">Nenhuma venda neste mês ainda.</p>'}
+    </div>
+  </div>`;
+}
+
+/**
+ * Meta do mes na tela inicial: o quanto ja' foi e o quanto falta, nessa ordem.
+ * Batida, o cartao inteiro muda de cor — e' para ver de longe, sem ler numero.
+ * Sem meta definida, o cartao nao aparece: espaco ocupado por meta vazia so'
+ * atrapalha quem ainda nao decidiu a dela.
+ */
+function metaHTML(m) {
+  if (!m.meta) return '';
+  return `
+  <div class="cartao ${m.batida ? 'meta-batida' : ''}">
+    <div class="cartao-cabecalho">
+      <div class="crescer"><h3>Meta de ${esc(competenciaBR(m.comp))}</h3>
+        <div class="texto-2 pequeno">meta de ${brl(m.meta)}</div></div>
+      ${m.batida
+        ? `<span class="selo-meta pulsa">${icone('check', 14)} Meta batida!</span>`
+        : `<button class="btn btn-p" data-ir="/metas">Ver metas</button>`}
+    </div>
+    ${barraMeta(m.pct, m.batida)}
+    <div class="meta-numeros">
+      <div><div class="rotulo">Já foi</div>
+        <div class="valor ${m.batida ? 'positivo' : ''}">${brl(m.realizado)}</div></div>
+      <div><div class="rotulo">${m.batida ? 'Passou da meta' : 'Falta'}</div>
+        <div class="valor ${m.batida ? 'positivo' : ''}">${brl(m.batida ? m.excedente : m.falta)}</div></div>
+      <div><div class="rotulo">Da meta</div><div class="valor">${Math.round(m.pct)}%</div></div>
     </div>
   </div>`;
 }

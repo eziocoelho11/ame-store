@@ -281,6 +281,67 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
   return { meses: lista, de: primeiro, ate: ultimo, compAtual };
 }
 
+// ---------------- metas ----------------
+
+/**
+ * Quanto a loja vendeu no mes, para efeito de meta.
+ *
+ * A conta segue a mesma logica da planilha que o Ezio ja' usava: venda a vista,
+ * no cartao ou por PIX conta no mes em que a venda aconteceu; fiado conta no mes
+ * em que a PARCELA vence. Nao e' arbitrario — fiado parcelado em 4x nao e'
+ * faturamento de um mes so', e contar tudo na venda inflaria o mes da venda e
+ * deixaria os seguintes vazios.
+ *
+ * Vem do recebivel, e nao da venda, porque assim vale igual para o que foi
+ * lancado no app e para o que veio importado da planilha.
+ */
+export function realizadoDaMeta(estado, comp) {
+  let total = 0;
+  const porTipo = {};
+  for (const r of Object.values(estado.recebiveis)) {
+    if (r.status === 'cancelado') continue;
+    const quando = r.tipo === 'fiado' ? r.vencimento : r.data;
+    if (String(quando || '').slice(0, 7) !== comp) continue;
+    total += r.bruto;
+    porTipo[r.tipo] = (porTipo[r.tipo] || 0) + r.bruto;
+  }
+  return { total, porTipo };
+}
+
+/** Meta de vendas de um mes: a do proprio mes, ou a padrao. */
+export function metaDoMes(config, comp) {
+  const m = (config && config.metas) || {};
+  const propria = (m.vendasPorMes || {})[comp];
+  return propria === undefined || propria === null ? (m.vendasPadrao || 0) : propria;
+}
+
+/** Provisoes que valem para o mes (a janela `de`/`ate` e' inclusiva). */
+export function provisoesDoMes(config, comp) {
+  const m = (config && config.metas) || {};
+  return (m.provisoes || []).filter((p) => (!p.de || comp >= p.de) && (!p.ate || comp <= p.ate));
+}
+
+/** Tudo que a tela de metas precisa saber sobre um mes. */
+export function resumoMeta(estado, comp) {
+  const meta = metaDoMes(estado.config, comp);
+  const { total, porTipo } = realizadoDaMeta(estado, comp);
+  const provisoes = provisoesDoMes(estado.config, comp);
+  return {
+    comp, meta, realizado: total, porTipo,
+    falta: Math.max(0, meta - total),
+    excedente: Math.max(0, total - meta),
+    pct: meta > 0 ? (total / meta) * 100 : null,
+    batida: meta > 0 && total >= meta,
+    provisoes,
+    totalProvisoes: provisoes.reduce((s, p) => s + (p.valor || 0), 0),
+  };
+}
+
+/** As metas do ano inteiro, de janeiro a dezembro. */
+export function metasDoAno(estado, ano) {
+  return Array.from({ length: 12 }, (_, i) => resumoMeta(estado, `${ano}-${String(i + 1).padStart(2, '0')}`));
+}
+
 export function rotuloRecebivel(r) {
   const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado',
     loja: 'Venda na loja' };

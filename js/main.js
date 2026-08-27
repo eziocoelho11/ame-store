@@ -18,6 +18,7 @@ const ROTAS = [
   ['/cliente/:id', 'Cliente', 'cliente', true],
   ['/despesas', 'Despesas', 'despesas'],
   ['/financeiro', 'Financeiro', 'financeiro'],
+  ['/metas', 'Metas', 'metas'],
   ['/dre', 'DRE', 'dre'],
   ['/relatorios', 'Relatórios', 'relatorios'],
   ['/ajustes', 'Ajustes', 'ajustes'],

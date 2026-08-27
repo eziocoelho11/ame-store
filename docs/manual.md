@@ -163,6 +163,29 @@ com previsão, este não admite previsão nenhuma. Barra para baixo é mês em q
 saiu mais do que entrou; uma compra grande de mercadoria derruba o mês inteiro,
 mesmo com as peças paradas no estoque esperando venda.
 
+### Metas
+A tela **Metas** guarda quanto a loja quer vender por mês e o que ela se
+compromete a guardar (as provisões). O cartão do mês mostra, nessa ordem, **o que
+já foi** e **o que falta** — e quando a meta é batida o cartão inteiro muda de
+cor, ganha o selo "Meta batida!" e a barra fica verde. Dá para ver do outro lado
+da loja, sem ler número.
+
+O mesmo cartão aparece no topo da tela inicial. Sem meta definida ele não
+aparece: meta é decisão sua, o app não inventa uma.
+
+**Como o realizado é contado:** venda à vista, no cartão e no PIX contam no mês
+em que a venda aconteceu; **fiado conta no mês em que cada parcela vence**. É a
+mesma regra da planilha antiga — e é o que evita um mês inflado, com o fiado
+inteiro de uma venda, seguido de meses vazios.
+
+Nos meses que ainda não chegaram, o realizado já mostra o fiado **contratado**
+para aquele mês. Por isso a diferença desses meses aparece em cinza, e não em
+vermelho: não é meta perdida, é meta em andamento.
+
+As **provisões** comparam o total a guardar no mês com o que sobrou de caixa
+(entrou menos saiu). O app não sabe quanto você realmente separou na conta —
+ele responde "deu para guardar?", não controla a reserva.
+
 ### Custo médio ponderado
 Cada entrada recalcula o custo médio da peça. Se você comprou 10 a R$ 50 e depois
 10 a R$ 60, o custo médio vira R$ 55 — e é esse valor que a venda seguinte usa
