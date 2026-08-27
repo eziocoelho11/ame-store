@@ -110,7 +110,10 @@ async function registrarServiceWorker() {
     // Na primeira instalacao o `clients.claim` tambem dispara controllerchange,
     // e ali nao ha' nada para atualizar — recarregar seria um susto a toa.
     const jaTinhaControlador = !!navigator.serviceWorker.controller;
-    const reg = await navigator.serviceWorker.register('sw.js');
+    // `updateViaCache: 'none'` obriga o navegador a buscar o sw.js na rede em vez
+    // de servir a copia guardada: o GitHub Pages manda max-age=600, e sem isso a
+    // checagem de versao podia responder com o arquivo velho por 10 minutos.
+    const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (jaTinhaControlador) aplicarAtualizacao();
     });
