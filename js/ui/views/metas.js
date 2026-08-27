@@ -75,9 +75,11 @@ function cartaoDoMes(r) {
         : `<p class="dica">Faltam <strong>${brl(r.falta)}</strong> para bater a meta deste mês.</p>`}
     ` : ''}
 
-    ${veio ? `<div class="legenda"><span>Veio de: ${veio}</span></div>` : ''}
-    <p class="dica">Venda à vista, no cartão e no PIX contam no mês da venda. <strong>Fiado conta no mês em que
-      a parcela vence</strong> — é a mesma regra da planilha, e é o que evita um mês inflado seguido de meses vazios.</p>
+    ${veio ? `<div class="legenda"><span>Entrou de: ${veio}</span></div>` : ''}
+    <p class="dica"><strong>A meta conta o dinheiro que entrou no mês.</strong> Venda à vista, PIX e cartão contam
+      quando caem; fiado conta quando a cliente paga, não quando a parcela vence. Parcela paga pela metade conta
+      só a metade que chegou.${r.aindaPodeEntrar ? ` Ainda pode entrar <strong>${brl(r.aindaPodeEntrar)}</strong>
+      este mês, de parcelas que vencem agora e continuam em aberto.` : ''}</p>
   </div>`;
 }
 
@@ -167,9 +169,9 @@ function cartaoAno(doAno, compAtual) {
         </tr>`;
       }).join('')}</tbody>
     </table></div>
-    <p class="dica">Nos meses que ainda não chegaram, o realizado é o fiado <strong>já contratado</strong> —
-      ele cresce com as vendas que ainda vão acontecer. Por isso a diferença desses meses aparece em cinza,
-      e não em vermelho: não é meta perdida, é meta em andamento.</p>
+    <p class="dica">Os meses à frente aparecem quase zerados de propósito: o realizado só conta dinheiro que já
+      entrou, e neles ainda não entrou nada. Por isso a diferença desses meses fica em cinza, e não em vermelho —
+      não é meta perdida, é mês que nem começou.</p>
   </div>`;
 }
 

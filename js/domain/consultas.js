@@ -312,26 +312,33 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
 // ---------------- metas ----------------
 
 /**
- * Quanto a loja vendeu no mes, para efeito de meta.
+ * Quanto ENTROU no mes, para efeito de meta.
  *
- * A conta segue a mesma logica da planilha que o Ezio ja' usava: venda a vista,
- * no cartao ou por PIX conta no mes em que a venda aconteceu; fiado conta no mes
- * em que a PARCELA vence. Nao e' arbitrario — fiado parcelado em 4x nao e'
- * faturamento de um mes so', e contar tudo na venda inflaria o mes da venda e
- * deixaria os seguintes vazios.
+ * Regime de caixa, igual ao resto do app: conta pagamento por pagamento, na
+ * data em que o dinheiro entrou. Parcela de fiado que vence no mes mas nao foi
+ * paga NAO conta — ela ainda esta' na rua. Fiado pago pela metade conta so' a
+ * metade que chegou.
  *
- * Vem do recebivel, e nao da venda, porque assim vale igual para o que foi
- * lancado no app e para o que veio importado da planilha.
+ * Antes a conta era por competencia, copiando a planilha: o fiado contava no
+ * mes do vencimento, recebido ou nao. O Ezio pediu caixa, e faz sentido: meta
+ * batida com dinheiro que nao chegou nao paga fornecedor nenhum.
+ *
+ * Vem do recebivel, e nao da venda, porque assim vale igual para o que nasce no
+ * app e para o que veio importado da planilha.
  */
 export function realizadoDaMeta(estado, comp) {
   let total = 0;
   const porTipo = {};
   for (const r of Object.values(estado.recebiveis)) {
     if (r.status === 'cancelado') continue;
-    const quando = r.tipo === 'fiado' ? r.vencimento : r.data;
-    if (String(quando || '').slice(0, 7) !== comp) continue;
-    total += r.bruto;
-    porTipo[r.tipo] = (porTipo[r.tipo] || 0) + r.bruto;
+    // O saldo do exercicio anterior entrou como entrada de caixa em janeiro,
+    // mas nao e' venda: nao pode contar para meta de venda nenhuma.
+    if (String(r.origem || '').startsWith('planilha-saldo-inicial')) continue;
+    for (const pg of (r.pagamentos || [])) {
+      if (String(pg.data || '').slice(0, 7) !== comp) continue;
+      total += pg.valor;
+      porTipo[r.tipo] = (porTipo[r.tipo] || 0) + pg.valor;
+    }
   }
   return { total, porTipo };
 }
@@ -360,10 +367,15 @@ export function resumoMeta(estado, comp) {
     ...p, feita: !!feitas[p.id + '|' + comp],
     guardadaEm: (feitas[p.id + '|' + comp] || {}).data || null,
   }));
+  // O que ainda pode entrar neste mes: parcela com vencimento no mes e ainda em
+  // aberto. Nao entra na meta (nao e' caixa), mas o dono precisa ver que existe.
+  const aindaPodeEntrar = Object.values(estado.recebiveis)
+    .filter((r) => emAberto(r) && String(r.vencimento || '').slice(0, 7) === comp)
+    .reduce((s, r) => s + saldoDe(r), 0);
   const totalProvisoes = provisoes.reduce((s, p) => s + (p.valor || 0), 0);
   const guardado = provisoes.filter((p) => p.feita).reduce((s, p) => s + (p.valor || 0), 0);
   return {
-    comp, meta, realizado: total, porTipo,
+    comp, meta, realizado: total, porTipo, aindaPodeEntrar,
     falta: Math.max(0, meta - total),
     excedente: Math.max(0, total - meta),
     pct: meta > 0 ? (total / meta) * 100 : null,

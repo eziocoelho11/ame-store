@@ -179,6 +179,8 @@ function metaHTML(m) {
         <div class="valor ${m.batida ? 'positivo' : ''}">${brl(m.batida ? m.excedente : m.falta)}</div></div>
       <div><div class="rotulo">Da meta</div><div class="valor">${Math.round(m.pct)}%</div></div>
     </div>
+    ${m.aindaPodeEntrar ? `<p class="dica">Conta só o que já entrou no caixa. Ainda pode entrar
+      <strong>${brl(m.aindaPodeEntrar)}</strong> este mês, de parcelas em aberto que vencem agora.</p>` : ''}
   </div>`;
 }
 
