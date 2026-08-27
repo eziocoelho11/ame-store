@@ -3,10 +3,12 @@
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
 import { nomeVariante } from '../../core/state.js';
-import { rotuloRecebivel } from '../../domain/consultas.js';
+import { rotuloRecebivel, saldoDe } from '../../domain/consultas.js';
 import { brl, esc, dataBR, pct, iso } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, confirmar, tag, abrirModal , vista } from '../ui.js';
+import { abrirRecebimento } from '../receber.js';
+import { comprovanteVenda, imprimirFolha } from '../impressao.js';
 
 export async function render(raiz, params) {
   const desenhar = vista(raiz, () => html(params.id), (caixa) => ligar(caixa, params.id));
@@ -78,12 +80,14 @@ function html(vendaId) {
         <td>${dataBR(r.vencimento)}</td>
         <td class="dir num">${brl(r.bruto)}</td>
         <td class="dir num">${r.taxa ? '− ' + brl(r.taxa) : '—'}</td>
-        <td class="dir num">${brl(r.liquido)}</td>
+        <td class="dir num">${brl(r.liquido)}
+          ${r.status === 'parcial' ? `<br><span class="pequeno texto-3">pagos ${brl(r.pago)} · falta ${brl(saldoDe(r))}</span>` : ''}</td>
         <td>${r.status === 'recebido' ? tag('recebido ' + dataBR(r.recebidoEm), 'ok')
           : r.status === 'cancelado' ? tag('cancelado', 'erro')
+          : r.status === 'parcial' ? tag('parcial', 'alerta')
           : r.vencimento < iso() ? tag('vencido', 'erro') : tag('a receber', 'alerta')}</td>
-        <td class="dir">${r.status === 'aberto'
-          ? `<button class="btn btn-p" data-baixar="${esc(r.id)}">Baixar</button>`
+        <td class="dir">${(r.status === 'aberto' || r.status === 'parcial')
+          ? `<button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button>`
           : r.status === 'recebido' ? `<button class="btn btn-p btn-fantasma" data-estornar="${esc(r.id)}">Estornar</button>` : ''}</td>
       </tr>`).join('')}</tbody>
     </table></div>
@@ -102,7 +106,7 @@ function html(vendaId) {
   ${v.status !== 'cancelada' ? `<div class="barra-botoes nao-imprimir">
     <button class="btn" data-acao="devolver">${icone('sincronizar', 16)} Registrar devolução</button>
     <button class="btn btn-perigo" data-acao="cancelar">${icone('fechar', 16)} Cancelar venda</button>
-    <button class="btn" data-acao="imprimir">${icone('imprimir', 16)} Imprimir</button>
+    <button class="btn btn-primario" data-acao="comprovante">${icone('documento', 16)} Comprovante em PDF</button>
   </div>` : `<div class="aviso aviso-erro">${icone('alerta')}<div>
     <strong>Venda cancelada em ${dataBR(v.canceladaEm)}.</strong>${esc(v.motivoCancelamento || '')}
     O estoque foi devolvido e os recebíveis, cancelados.</div></div>`}`;
@@ -113,11 +117,14 @@ function ligar(raiz, vendaId) {
   const v = e.vendas[vendaId];
   if (!v) return;
 
-  liga(raiz, 'click', '[data-acao="imprimir"]', () => window.print());
+  liga(raiz, 'click', '[data-acao="comprovante"]', () => {
+    imprimirFolha(comprovanteVenda(log.estado(), log.estado().vendas[vendaId]));
+  });
 
-  liga(raiz, 'click', '[data-baixar]', async (ev, el) => {
-    await acoes.baixarRecebivel(el.dataset.baixar, '', iso());
-    toast('Recebimento baixado.', 'ok');
+  liga(raiz, 'click', '[data-receber]', (ev, el) => {
+    const r = e.recebiveis[el.dataset.receber];
+    const c = v.clienteId ? e.clientes[v.clienteId] : null;
+    if (r) abrirRecebimento({ recebivel: r, nomeCliente: c ? c.nome : '' });
   });
   liga(raiz, 'click', '[data-estornar]', async (ev, el) => {
     const ok = await confirmar('Estornar recebimento', 'A parcela volta para "a receber".', { textoOk: 'Estornar' });

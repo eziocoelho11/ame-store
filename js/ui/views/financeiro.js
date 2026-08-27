@@ -2,12 +2,14 @@
 // A DRE diz se a loja da' lucro; esta tela diz se tem dinheiro na conta.
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
-import { recebiveis, aReceber, aReceberPorMes, fluxoCaixa, rotuloRecebivel } from '../../domain/consultas.js';
+import { recebiveis, aReceber, aReceberPorMes, fluxoCaixa, rotuloRecebivel, saldoDe } from '../../domain/consultas.js';
 import { brl, esc, iso, dataBR, dataCurta, competencia, limitesDaCompetencia, competenciaBR, somaDias } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, tag, vazio, paraCSV, csvMoeda, baixarArquivo, confirmar , vista } from '../ui.js';
 import { barras as grafBarras } from '../graficos.js';
 import { irPara } from '../router.js';
+import { abrirRecebimento } from '../receber.js';
+import { extratoCliente, imprimirFolha } from '../impressao.js';
 
 let aba = 'receber';
 let periodo = null;
@@ -27,9 +29,12 @@ function html() {
   const hoje = iso();
   const r = aReceber(e, hoje);
   const fluxo = fluxoCaixa(e, periodo.de, periodo.ate);
+  // Soma PAGAMENTO por pagamento: parcela paga em duas vezes conta metade em
+  // cada janela, e nao tudo no dia em que fechou.
   const recebidoNoPeriodo = Object.values(e.recebiveis)
-    .filter((x) => x.status === 'recebido' && x.recebidoEm >= periodo.de && x.recebidoEm <= periodo.ate)
-    .reduce((s, x) => s + x.liquido, 0);
+    .flatMap((x) => x.pagamentos || [])
+    .filter((pg) => pg.data >= periodo.de && pg.data <= periodo.ate)
+    .reduce((s, pg) => s + pg.valor, 0);
 
   return `
   <div class="grade grade-4 mb">
@@ -41,11 +46,14 @@ function html() {
 
   <div class="pilulas mb">
     <button class="pilula ${aba === 'receber' ? 'ativa' : ''}" data-aba="receber">A receber</button>
+    <button class="pilula ${aba === 'devedores' ? 'ativa' : ''}" data-aba="devedores">Devedores</button>
     <button class="pilula ${aba === 'recebido' ? 'ativa' : ''}" data-aba="recebido">Recebidos</button>
     <button class="pilula ${aba === 'fluxo' ? 'ativa' : ''}" data-aba="fluxo">Fluxo de caixa</button>
   </div>
 
-  ${aba === 'fluxo' ? fluxoHTML(fluxo) : listaHTML(e, aba === 'recebido', hoje, recebidoNoPeriodo)}`;
+  ${aba === 'fluxo' ? fluxoHTML(fluxo)
+    : aba === 'devedores' ? devedoresHTML(e, hoje)
+    : listaHTML(e, aba === 'recebido', hoje, recebidoNoPeriodo)}`;
 }
 
 function listaHTML(e, recebidos, hoje, totalRecebido) {
@@ -83,17 +91,20 @@ function listaHTML(e, recebidos, hoje, totalRecebido) {
           ? `<a href="#/venda/${esc(r.vendaId)}">${esc(rotuloRecebivel(r))}</a>`
           : esc(rotuloRecebivel(r))}
           ${cliente ? `<br><span class="texto-3 pequeno">${esc(cliente)}</span>` : ''}</td>
-        <td>${dataBR(recebidos ? r.recebidoEm : r.vencimento)} ${vencido ? tag('vencido', 'erro') : ''}</td>
+        <td>${dataBR(recebidos ? r.recebidoEm : r.vencimento)} ${vencido ? tag('vencido', 'erro') : ''}
+          ${!recebidos && r.status === 'parcial' ? tag('parcial', 'alerta') : ''}</td>
         <td class="dir num">${brl(r.bruto)}</td>
         <td class="dir num">${r.taxa ? '− ' + brl(r.taxa) : '—'}</td>
-        <td class="dir num negrito">${brl(r.liquido)}</td>
+        <td class="dir num negrito">${brl(recebidos ? r.liquido : saldoDe(r))}
+          ${!recebidos && r.status === 'parcial'
+            ? `<br><span class="pequeno texto-3">de ${brl(r.liquido)} · pagos ${brl(r.pago)}</span>` : ''}</td>
         <td class="dir">${recebidos
           ? `<button class="btn btn-p btn-fantasma" data-estornar="${esc(r.id)}">Estornar</button>`
-          : `<button class="btn btn-p" data-baixar="${esc(r.id)}">Baixar</button>`}</td>
+          : `<button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button>`}</td>
       </tr>`;
     }).join('')}</tbody>
     <tfoot><tr><td colspan="${recebidos ? 4 : 5}">Total</td>
-      <td class="dir num">${brl(lista.reduce((s, r) => s + r.liquido, 0))}</td><td></td></tr></tfoot>
+      <td class="dir num">${brl(lista.reduce((s, r) => s + (recebidos ? r.liquido : saldoDe(r)), 0))}</td><td></td></tr></tfoot>
   </table></div></div>`
     : vazio('dinheiro', recebidos ? 'Nada recebido no período' : 'Nada a receber',
       recebidos ? 'Ajuste as datas acima.' : 'Toda venda no dinheiro ou PIX já entra como recebida.')}`;
@@ -162,6 +173,90 @@ function fluxoHTML(fluxo) {
 }
 
 /**
+ * Devedores: quem deve, quanto, e ha' quanto tempo. A lista "A receber" mostra
+ * parcela por parcela; aqui a pergunta e' outra — quem eu preciso cobrar. Por
+ * isso agrupa por cliente e ordena pelo vencido, nao pela data.
+ */
+function devedoresHTML(e, hoje) {
+  const abertos = recebiveis(e, { status: 'aberto' });
+  const grupos = new Map();
+  for (const r of abertos) {
+    const chave = r.clienteId || '';
+    if (!grupos.has(chave)) {
+      const c = r.clienteId ? e.clientes[r.clienteId] : null;
+      grupos.set(chave, {
+        clienteId: r.clienteId || null,
+        nome: c ? c.nome : 'Sem cliente identificado',
+        telefone: c ? c.telefone : '',
+        parcelas: [], total: 0, vencido: 0, nVencidas: 0, maisAntiga: '',
+      });
+    }
+    const g = grupos.get(chave);
+    const falta = saldoDe(r);
+    g.parcelas.push(r);
+    g.total += falta;
+    if (r.vencimento < hoje) {
+      g.vencido += falta;
+      g.nVencidas++;
+      if (!g.maisAntiga || r.vencimento < g.maisAntiga) g.maisAntiga = r.vencimento;
+    }
+  }
+  const lista = [...grupos.values()].sort((a, b) => (b.vencido - a.vencido) || (b.total - a.total));
+  if (!lista.length) return vazio('pessoas', 'Ninguém devendo', 'Todo fiado e todo cartão já entraram.');
+
+  const totalGeral = lista.reduce((s, g) => s + g.total, 0);
+  const totalVencido = lista.reduce((s, g) => s + g.vencido, 0);
+  const zap = (tel) => 'https://wa.me/55' + String(tel).replace(/[^0-9]/g, '');
+
+  return `
+  <div class="grade grade-3 mb">
+    ${kpi('Devedores', String(lista.length), 'clientes com parcela em aberto')}
+    ${kpi('Total a receber deles', brl(totalGeral), '', 'destaque')}
+    ${kpi('Vencido', brl(totalVencido), totalVencido ? 'cobrar primeiro' : 'nada atrasado')}
+  </div>
+
+  <div id="fin-selecao"></div>
+
+  ${lista.map((g) => `
+  <div class="cartao">
+    <div class="cartao-cabecalho">
+      <div class="crescer">
+        <h3>${g.clienteId ? `<a href="#/cliente/${esc(g.clienteId)}">${esc(g.nome)}</a>` : esc(g.nome)}</h3>
+        <div class="texto-2 pequeno">${g.parcelas.length} parcela(s) em aberto
+          ${g.nVencidas ? `· ${tag(g.nVencidas + ' vencida(s) desde ' + dataBR(g.maisAntiga), 'erro')}` : '· em dia'}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="valor-kpi">${brl(g.total)}</div>
+        ${g.vencido ? `<div class="pequeno negativo">${brl(g.vencido)} vencido</div>` : ''}
+      </div>
+    </div>
+
+    <div class="rolagem-x"><table>
+      <thead><tr><th style="width:34px"></th><th>Origem</th><th>Vencimento</th>
+        <th class="dir">Valor</th><th class="dir">Pago</th><th class="dir">Falta</th><th></th></tr></thead>
+      <tbody>${g.parcelas.map((r) => `<tr>
+        <td><label class="caixa-toque"><input type="checkbox" data-sel="${esc(r.id)}"${selecionados.has(r.id) ? ' checked' : ''}></label></td>
+        <td>${r.vendaId ? `<a href="#/venda/${esc(r.vendaId)}">${esc(rotuloRecebivel(r))}</a>` : esc(rotuloRecebivel(r))}</td>
+        <td>${dataBR(r.vencimento)} ${r.vencimento < hoje ? tag('vencido', 'erro') : ''}
+          ${r.status === 'parcial' ? tag('parcial', 'alerta') : ''}</td>
+        <td class="dir num">${brl(r.liquido)}</td>
+        <td class="dir num">${r.pago ? brl(r.pago) : '—'}</td>
+        <td class="dir num negrito">${brl(saldoDe(r))}</td>
+        <td class="dir"><button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+
+    <div class="barra-botoes mt">
+      ${g.clienteId ? `<button class="btn" data-extrato="${esc(g.clienteId)}">${icone('documento', 16)} Extrato em PDF</button>` : ''}
+      ${g.telefone ? `<a class="btn" target="_blank" rel="noopener" href="${esc(zap(g.telefone))}">${icone('pessoas', 16)} WhatsApp</a>` : ''}
+    </div>
+  </div>`).join('')}
+
+  <p class="dica">Marque as parcelas para ver o subtotal e imprimir o extrato só delas. Sem marcar nenhuma,
+    o extrato do cliente sai com a conta inteira — o que já foi pago e o que falta.</p>`;
+}
+
+/**
  * Desenha a barra de selecao — e' o unico pedaco que muda quando o usuario
  * marca uma parcela. Redesenhar a tela inteira a cada clique fazia a lista
  * inteira pular, e o segundo toque caia na linha errada.
@@ -171,11 +266,16 @@ function pintarSelecao(raiz) {
   if (!alvo) return;
   if (!selecionados.size) { alvo.innerHTML = ''; return; }
   const e = log.estado();
-  const total = [...selecionados].map((id) => e.recebiveis[id]).filter(Boolean)
-    .reduce((s, r) => s + r.liquido, 0);
+  const marcadas = [...selecionados].map((id) => e.recebiveis[id]).filter(Boolean);
+  const total = marcadas.reduce((s, r) => s + saldoDe(r), 0);
+  // Extrato so' faz sentido de UM cliente: juntar dois numa folha so' viraria
+  // um documento que nao se entrega a ninguem.
+  const clientes = new Set(marcadas.map((r) => r.clienteId || ''));
+  const umCliente = clientes.size === 1 && [...clientes][0];
   alvo.innerHTML = `<div class="barra-selecao">
     <div class="crescer"><strong>${selecionados.size} parcela(s)</strong>
-      <div class="texto-2 pequeno">${brl(total)} líquidos</div></div>
+      <div class="texto-2 pequeno">${brl(total)} em aberto</div></div>
+    ${umCliente ? '<button class="btn btn-p" data-acao="extrato-selecao">Extrato em PDF</button>' : ''}
     <button class="btn btn-p btn-primario" data-acao="baixar-lote">Marcar como recebidas</button>
     <button class="btn btn-p" data-acao="limpar-selecao">Limpar</button>
   </div>`;
@@ -202,7 +302,7 @@ function ligar(raiz, redesenhar) {
   liga(raiz, 'click', '[data-acao="baixar-lote"]', async () => {
     const ids = [...selecionados];
     if (!ids.length) return;
-    const total = ids.map((id) => e.recebiveis[id]).filter(Boolean).reduce((s, r) => s + r.liquido, 0);
+    const total = ids.map((id) => e.recebiveis[id]).filter(Boolean).reduce((s, r) => s + saldoDe(r), 0);
     const ok = await confirmar('Marcar como recebidas',
       `${ids.length} parcela(s), ${brl(total)} líquidos, entram no caixa de hoje (${dataBR(iso())}).`,
       { textoOk: 'Marcar' });
@@ -216,9 +316,20 @@ function ligar(raiz, redesenhar) {
     toast(`${ids.length} recebimento(s) baixado(s).`, 'ok');
   });
 
-  liga(raiz, 'click', '[data-baixar]', async (ev, el) => {
-    await acoes.baixarRecebivel(el.dataset.baixar, '', iso());
-    toast('Recebimento baixado.', 'ok');
+  liga(raiz, 'click', '[data-receber]', (ev, el) => {
+    const r = e.recebiveis[el.dataset.receber];
+    if (!r) return;
+    const cliente = r.clienteId && e.clientes[r.clienteId] ? e.clientes[r.clienteId].nome : '';
+    abrirRecebimento({ recebivel: r, nomeCliente: cliente });
+  });
+  liga(raiz, 'click', '[data-extrato]', (ev, el) => {
+    imprimirFolha(extratoCliente(log.estado(), el.dataset.extrato));
+  });
+  liga(raiz, 'click', '[data-acao="extrato-selecao"]', () => {
+    const ids = [...selecionados];
+    const marcadas = ids.map((id) => log.estado().recebiveis[id]).filter(Boolean);
+    if (!marcadas.length) return;
+    imprimirFolha(extratoCliente(log.estado(), marcadas[0].clienteId, ids));
   });
   liga(raiz, 'click', '[data-estornar]', async (ev, el) => {
     await acoes.estornarRecebivel(el.dataset.estornar);

@@ -308,6 +308,18 @@ export function importarRecebivel(dados) {
   });
 }
 
+/**
+ * Recebimento PARCIAL de uma parcela: a cliente trouxe uma parte. A parcela
+ * continua em aberto pelo que falta, e o dinheiro entra no caixa na data em que
+ * entrou de verdade. Se o valor cobrir o que faltava, o proprio replay fecha a
+ * parcela como recebida.
+ */
+export function abaterRecebivel(recebivelId, valor, { forma = '', data, obs = '' } = {}) {
+  return log.registrar('recebivel.abatido', {
+    recebivelId, valor, forma, data: data || iso(), obs,
+  });
+}
+
 export function estornarRecebivel(recebivelId) {
   return log.registrar('recebivel.estornado', { recebivelId });
 }

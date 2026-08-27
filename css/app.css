@@ -413,6 +413,14 @@ tfoot td { font-weight: 650; border-top: 2px solid var(--borda-forte); border-bo
 .barra.atencao > span { background: var(--ambar); }
 .barra.perigo > span { background: var(--vermelho); }
 
+/* Agenda do fiado: uma caixa de data por parcela, lado a lado. */
+.agenda-parcelas {
+  display: grid; gap: .5rem; margin-top: .6rem;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.agenda-parcelas .campo-grupo { margin: 0; }
+.agenda-parcelas label { font-size: .72rem; color: var(--texto-2); font-weight: 600; }
+
 /* ---------------- metas ---------------- */
 
 .barra-meta { height: 14px; border-radius: 999px; background: var(--superficie-3); overflow: hidden; }
@@ -558,12 +566,67 @@ tr.destaque-linha td { background: var(--roxo-suave); }
 
 /* ---------------- impressao ---------------- */
 
+/* ---------------- folha (comprovante e extrato) ----------------
+   Um bloco montado so' na hora de imprimir. Na tela ele nao existe; no papel,
+   ele e' a unica coisa que existe. */
+
+.folha { display: none; }
+
+body.imprimindo .folha { display: block; }
+
 @media print {
   .topo, .nav-inferior, .nav-lateral, .fab, .toasts, .nao-imprimir { display: none !important; }
   .conteudo { margin: 0; padding: 0; max-width: none; }
   .cartao { box-shadow: none; border: 0; page-break-inside: avoid; }
   body { background: #fff; color: #000; font-size: 11pt; }
   .etiqueta-print { page-break-inside: avoid; }
+
+  /* Com a folha montada, a tela inteira sai do papel. */
+  body.imprimindo .conteudo, body.imprimindo .modal-fundo, body.imprimindo .fundo-modal { display: none !important; }
+  body.imprimindo .folha { display: block; }
+  @page { margin: 14mm 12mm; }
+}
+
+.folha {
+  color: #1a1a1a; background: #fff;
+  font-size: 10.5pt; line-height: 1.45;
+  max-width: 190mm; margin: 0 auto;
+}
+.folha-topo {
+  display: flex; align-items: flex-start; gap: 14px;
+  border-bottom: 2px solid #3A3335; padding-bottom: 10px; margin-bottom: 14px;
+}
+.folha-logo { width: 54px; height: 54px; flex: none; }
+.folha-marca { flex: 1; }
+.folha-nome { font-family: Georgia, 'Times New Roman', serif; font-size: 15pt; letter-spacing: .04em; }
+.folha-titulo { text-align: right; }
+.folha-h1 { font-size: 12pt; font-weight: 700; }
+.folha-linha { font-size: 8.8pt; color: #555; }
+.folha-rotulo {
+  font-size: 7.6pt; text-transform: uppercase; letter-spacing: .08em;
+  color: #777; font-weight: 700; margin-bottom: 2px;
+}
+.folha-destaque { font-size: 12pt; font-weight: 700; }
+.folha-bloco { margin: 12px 0; }
+.folha-resumo { display: flex; gap: 22px; margin: 14px 0; }
+.folha-pago { color: #1C7A57; }
+.folha-devendo { color: #B3261E; }
+.folha-aviso {
+  background: #FBE9E8; border-left: 3px solid #B3261E;
+  padding: 6px 10px; font-size: 9.5pt; margin: 10px 0;
+}
+.folha-tabela { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.folha-tabela th {
+  text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em;
+  color: #555; border-bottom: 1px solid #999; padding: 5px 6px;
+}
+.folha-tabela td { padding: 5px 6px; border-bottom: 1px solid #E3E3E3; vertical-align: top; }
+.folha-tabela .dir { text-align: right; font-variant-numeric: tabular-nums; }
+.folha-tabela tr.folha-total td { font-weight: 700; border-top: 2px solid #3A3335; border-bottom: 0; }
+.folha-rodape {
+  margin-top: 18px; padding-top: 8px; border-top: 1px solid #CCC;
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 8.2pt; color: #666;
 }
 
 /* grade de etiquetas para impressao */

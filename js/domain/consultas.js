@@ -99,10 +99,22 @@ export function resumoVendas(vendas) {
 
 // ---------------- recebiveis e caixa ----------------
 
+/** Parcela que ainda deve alguma coisa — inclui a paga pela metade. */
+export function emAberto(r) {
+  return r.status === 'aberto' || r.status === 'parcial';
+}
+
+/** Quanto falta receber de uma parcela. */
+export function saldoDe(r) {
+  if (r.status === 'recebido' || r.status === 'cancelado') return 0;
+  return r.saldo === undefined ? r.liquido : r.saldo;
+}
+
 export function recebiveis(estado, { status = '', de = '', ate = '', tipo = '', clienteId = '' } = {}) {
   return Object.values(estado.recebiveis)
     .filter((r) => r.status !== 'cancelado')
-    .filter((r) => !status || r.status === status)
+    // Pedir 'aberto' traz tambem a parcial: ela continua devendo.
+    .filter((r) => !status || (status === 'aberto' ? emAberto(r) : r.status === status))
     .filter((r) => !tipo || r.tipo === tipo)
     .filter((r) => !clienteId || r.clienteId === clienteId)
     .filter((r) => !de || r.vencimento >= de)
@@ -113,15 +125,15 @@ export function recebiveis(estado, { status = '', de = '', ate = '', tipo = '', 
 /** O que ainda tem para entrar: cartao a receber + fiado em aberto. */
 export function aReceber(estado, hoje = iso()) {
   const abertos = recebiveis(estado, { status: 'aberto' });
-  const total = abertos.reduce((s, r) => s + r.liquido, 0);
+  const soma = (lista) => lista.reduce((s, r) => s + saldoDe(r), 0);
   const vencidos = abertos.filter((r) => r.vencimento < hoje);
   const proximos30 = abertos.filter((r) => r.vencimento >= hoje && r.vencimento <= somaDias(hoje, 30));
   return {
-    lista: abertos, total,
-    vencidos: vencidos.reduce((s, r) => s + r.liquido, 0), nVencidos: vencidos.length,
-    proximos30: proximos30.reduce((s, r) => s + r.liquido, 0),
-    cartao: abertos.filter((r) => r.tipo === 'credito' || r.tipo === 'debito').reduce((s, r) => s + r.liquido, 0),
-    fiado: abertos.filter((r) => r.tipo === 'fiado').reduce((s, r) => s + r.liquido, 0),
+    lista: abertos, total: soma(abertos),
+    vencidos: soma(vencidos), nVencidos: vencidos.length,
+    proximos30: soma(proximos30),
+    cartao: soma(abertos.filter((r) => r.tipo === 'credito' || r.tipo === 'debito')),
+    fiado: soma(abertos.filter((r) => r.tipo === 'fiado')),
   };
 }
 
@@ -144,9 +156,10 @@ export function aReceberPorMes(estado, { hoje = iso(), meses = 6 } = {}) {
     // Parcela vencida nao fica escondida num mes passado: aparece no mes atual.
     const comp = r.vencimento < hoje ? compAtual : r.vencimento.slice(0, 7);
     const l = linha(comp);
-    if (r.tipo === 'fiado') l.fiado += r.liquido; else l.cartao += r.liquido;
-    if (r.vencimento < hoje) l.vencido += r.liquido;
-    l.total += r.liquido;
+    const falta = saldoDe(r);
+    if (r.tipo === 'fiado') l.fiado += falta; else l.cartao += falta;
+    if (r.vencimento < hoje) l.vencido += falta;
+    l.total += falta;
     l.n++;
   }
   const lista = [...linhas.values()].sort((a, b) => a.comp.localeCompare(b.comp));
@@ -161,12 +174,18 @@ export function fluxoCaixa(estado, de, ate) {
   const dias = {};
   const toca = (data) => (dias[data] || (dias[data] = { data, entradas: 0, saidas: 0, itens: [] }));
 
+  // Percorre PAGAMENTO por pagamento, e nao parcela por parcela: fiado pago pela
+  // metade entra no caixa do dia em que a metade entrou, nao no dia em que a
+  // parcela fechar.
   for (const r of Object.values(estado.recebiveis)) {
-    if (r.status !== 'recebido' || !r.recebidoEm) continue;
-    if (r.recebidoEm < de || r.recebidoEm > ate) continue;
-    const d = toca(r.recebidoEm);
-    d.entradas += r.liquido;
-    d.itens.push({ tipo: 'entrada', desc: rotuloRecebivel(r), valor: r.liquido });
+    if (r.status === 'cancelado') continue;
+    for (const pg of (r.pagamentos || [])) {
+      if (!pg.data || pg.data < de || pg.data > ate) continue;
+      const d = toca(pg.data);
+      d.entradas += pg.valor;
+      const parcial = pg.valor < r.liquido;
+      d.itens.push({ tipo: 'entrada', desc: rotuloRecebivel(r) + (parcial ? ' (parcial)' : ''), valor: pg.valor });
+    }
   }
   for (const dp of Object.values(estado.despesas)) {
     if (!dp.pago) continue;
@@ -245,12 +264,15 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
   };
 
   for (const r of Object.values(estado.recebiveis)) {
-    if (r.status === 'recebido' && r.recebidoEm) {
-      const m = balde(r.recebidoEm);
-      if (m) m.entradas += r.liquido;
-    } else if (r.status === 'aberto') {
+    if (r.status === 'cancelado') continue;
+    for (const pg of (r.pagamentos || [])) {
+      const m = balde(pg.data);
+      if (m) m.entradas += pg.valor;
+    }
+    const falta = saldoDe(r);
+    if (falta > 0) {
       const m = baldePendente(r.vencimento);
-      if (m) m.entradasPrevistas += r.liquido;
+      if (m) m.entradasPrevistas += falta;
     }
   }
   for (const d of Object.values(estado.despesas)) {

@@ -52,6 +52,7 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
               parcelas: (l.forma === 'credito' || l.forma === 'fiado') ? l.parcelas : 1,
               bandeira: l.bandeira || '',
               vencimento: l.forma === 'fiado' ? l.vencimento : undefined,
+              vencimentos: l.forma === 'fiado' ? (l.vencimentos || []).slice(0, Math.max(1, l.parcelas || 1)) : undefined,
             })));
             fechar();
           } catch (err) {
@@ -93,7 +94,7 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
         ${l.forma === 'credito' || l.forma === 'fiado' ? `<div class="campo-grupo"><label>Parcelas</label>
           <select data-parcelas="${i}">${Array.from({ length: 12 }, (_, k) => k + 1).map((n) =>
             `<option value="${n}"${l.parcelas === n ? ' selected' : ''}>${n}x</option>`).join('')}</select></div>` : ''}
-        ${l.forma === 'fiado' ? `<div class="campo-grupo"><label>${(l.parcelas || 1) > 1 ? '1º vencimento' : 'Vencimento'}</label>
+        ${l.forma === 'fiado' && (l.parcelas || 1) === 1 ? `<div class="campo-grupo"><label>Vencimento</label>
           <input type="date" data-vencimento="${i}" value="${esc(l.vencimento)}"></div>` : ''}
         ${l.forma === 'debito' || l.forma === 'credito' ? `<div class="campo-grupo"><label>Bandeira</label>
           <input data-bandeira="${i}" value="${esc(l.bandeira || '')}" placeholder="opcional"></div>` : ''}
@@ -103,7 +104,28 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
             · primeira parcela em ${dataBR(somaDias(iso(), regra.prazoDias || 30))}
             ${!regra.taxaPct ? '<br><strong>Taxa não configurada</strong> — ajuste em Ajustes › Taxas da maquininha.' : ''}</div>`
         : ''}
+      ${l.forma === 'fiado' && (l.parcelas || 1) > 1 ? agendaEditavelHTML(l, i) : ''}
       ${l.forma === 'fiado' ? `<div class="dica">${agendaFiadoHTML(l)}</div>` : ''}
+    </div>`;
+  }
+
+  /**
+   * Uma caixa de data por parcela. O padrao e' o mesmo dia dos meses seguintes,
+   * e cada uma pode ser mudada a mao: fiado de verdade se combina no balcao
+   * ("essa eu pago no dia 5, a outra quando receber").
+   */
+  function agendaEditavelHTML(l, i) {
+    const n = Math.max(1, l.parcelas || 1);
+    const valores = dividirCentavos(l.valor, n);
+    const vencs = l.vencimentos || [];
+    const base = l.vencimento || somaDias(iso(), 30);
+    return `<div class="agenda-parcelas">
+      ${Array.from({ length: n }, (_, k) => `
+        <div class="campo-grupo">
+          <label for="venc-${i}-${k}">${k + 1}ª · ${brl(valores[k])}</label>
+          <input id="venc-${i}-${k}" type="date" data-venc-parcela="${i}-${k}"
+            value="${esc(vencs[k] || somaMesesData(base, k))}">
+        </div>`).join('')}
     </div>`;
   }
 
@@ -116,7 +138,9 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     const base = l.vencimento || somaDias(iso(), 30);
     const valores = dividirCentavos(l.valor, n);
     if (n === 1) return `Entra no caixa em ${dataBR(base)}. Sem taxa.`;
-    const venc = (i) => dataBR(somaMesesData(base, i));
+    // Le' a agenda de verdade, inclusive as datas que o usuario mudou a mao.
+    const vencs = l.vencimentos || [];
+    const venc = (i) => dataBR(vencs[i] || somaMesesData(base, i));
     // O resto da divisao vai para as primeiras parcelas — podem ser varias,
     // entao o texto tem que dizer quantas, ou o numero na tela nao bate.
     const maior = valores[0], menor = valores[n - 1];
@@ -128,7 +152,7 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     const datas = n <= 4
       ? valores.map((v, i) => venc(i)).join(' · ')
       : `${venc(0)} · ${venc(1)} · … · ${venc(n - 1)}`;
-    return `${resumo}, de mês em mês. Sem taxa.<br>Vencimentos: ${datas}`;
+    return `${resumo}. Sem taxa.<br>Vencimentos: ${datas} — cada data acima pode ser mudada.`;
   }
 
   function resumoHTML() {
@@ -154,12 +178,14 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     const forma = el.dataset.forma;
     const restante = falta();
     if (restante <= 0 && linhas.length) { toast('O total já está coberto.'); return; }
+    const primeiro = forma === 'fiado' ? somaDias(iso(), 30) : '';
     linhas.push({
       forma,
       valor: Math.max(0, restante),
-      parcelas: forma === 'credito' ? 1 : 1,
+      parcelas: 1,
       bandeira: '',
-      vencimento: forma === 'fiado' ? somaDias(iso(), 30) : '',
+      vencimento: primeiro,
+      vencimentos: primeiro ? [primeiro] : [],
     });
     desenhar();
   });
@@ -180,9 +206,33 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     }
     desenhar();
   });
+  /**
+   * Refaz a agenda a partir da primeira data: mesmo dia nos meses seguintes.
+   * Datas que o usuario ja' mexeu a mao sao preservadas quando ainda cabem no
+   * numero de parcelas — mudar de 3x para 4x nao pode apagar o que ele ajustou.
+   */
+  function refazerVencimentos(l, { forcarTudo = false } = {}) {
+    const n = Math.max(1, l.parcelas || 1);
+    const base = l.vencimento || somaDias(iso(), 30);
+    const antigos = forcarTudo ? [] : (l.vencimentos || []);
+    l.vencimentos = Array.from({ length: n }, (_, k) => (k === 0 ? base : (antigos[k] || somaMesesData(base, k))));
+  }
+
   liga(raiz, 'change', '[data-parcelas]', (ev, el) => {
     const i = Number(el.dataset.parcelas);
     linhas[i].parcelas = Number(el.value);
+    if (linhas[i].forma === 'fiado') refazerVencimentos(linhas[i]);
+    desenhar();
+  });
+
+  // Data de UMA parcela: mexe so' nela. Mexer na primeira reagenda as seguintes
+  // que ainda nao foram tocadas a mao.
+  liga(raiz, 'change', '[data-venc-parcela]', (ev, el) => {
+    const [i, k] = el.dataset.vencParcela.split('-').map(Number);
+    const l = linhas[i];
+    l.vencimentos = l.vencimentos || [];
+    l.vencimentos[k] = el.value;
+    if (k === 0) { l.vencimento = el.value; refazerVencimentos(l, { forcarTudo: true }); }
     desenhar();
   });
   liga(raiz, 'change', '[data-bandeira]', (ev, el) => { linhas[Number(el.dataset.bandeira)].bandeira = el.value; });

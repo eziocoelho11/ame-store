@@ -2,7 +2,9 @@
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
 import { saldoFiado, nomeVariante } from '../../core/state.js';
-import { recebiveis } from '../../domain/consultas.js';
+import { recebiveis, saldoDe } from '../../domain/consultas.js';
+import { abrirRecebimento } from '../receber.js';
+import { extratoCliente, imprimirFolha } from '../impressao.js';
 import { brl, esc, dataBR, iso, num } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, modalFormulario, confirmar, tag, iniciais , vista } from '../ui.js';
@@ -73,7 +75,9 @@ function html(clienteId) {
       <div class="item" style="cursor:default">
         <div class="corpo"><div class="titulo">${r.vendaId ? 'Venda #' + r.numeroVenda : esc(r.descricao || 'Saldo importado')}</div>
           <div class="sub">vence ${dataBR(r.vencimento)} ${r.vencimento < iso() ? tag('vencido', 'erro') : ''}</div></div>
-        <div class="valor">${brl(r.liquido)}<small><button class="btn btn-p" data-baixar="${esc(r.id)}">Recebi</button></small></div>
+        <div class="valor">${brl(saldoDe(r))}
+          ${r.status === 'parcial' ? `<small class="texto-3">de ${brl(r.liquido)}</small>` : ''}
+          <small><button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button></small></div>
       </div>`).join('')}</div>
   </div>` : ''}
 
@@ -90,6 +94,7 @@ function html(clienteId) {
   </div>
 
   <div class="barra-botoes">
+    <button class="btn btn-primario" data-acao="extrato">${icone('documento', 16)} Extrato em PDF</button>
     <button class="btn btn-perigo" data-acao="arquivar">Arquivar cliente</button>
   </div>`;
 }
@@ -100,9 +105,12 @@ function ligar(raiz, clienteId) {
   if (!c) return;
 
   liga(raiz, 'click', '[data-venda]', (ev, el) => irPara('/venda/' + el.dataset.venda));
-  liga(raiz, 'click', '[data-baixar]', async (ev, el) => {
-    await acoes.baixarRecebivel(el.dataset.baixar, 'dinheiro', iso());
-    toast('Fiado baixado.', 'ok');
+  liga(raiz, 'click', '[data-receber]', (ev, el) => {
+    const r = log.estado().recebiveis[el.dataset.receber];
+    if (r) abrirRecebimento({ recebivel: r, nomeCliente: c.nome });
+  });
+  liga(raiz, 'click', '[data-acao="extrato"]', () => {
+    imprimirFolha(extratoCliente(log.estado(), clienteId));
   });
   liga(raiz, 'click', '[data-acao="editar"]', () => {
     modalFormulario({

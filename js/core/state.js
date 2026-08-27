@@ -201,6 +201,13 @@ export function aplicar(e, ev) {
     case 'recebivel.baixado': {
       const r = e.recebiveis[d.recebivelId];
       if (r && r.status !== 'cancelado') {
+        const falta = Math.max(0, r.liquido - (r.pago || 0));
+        if (falta > 0) {
+          r.pagamentos = r.pagamentos || [];
+          r.pagamentos.push({ valor: falta, data: d.data, forma: d.forma || '' });
+        }
+        r.pago = r.liquido;
+        r.saldo = 0;
         r.status = 'recebido';
         r.recebidoEm = d.data;
         r.formaRecebimento = d.forma || r.tipo;
@@ -222,13 +229,47 @@ export function aplicar(e, ev) {
         bruto: valor, taxaPct: 0, taxa: 0, liquido: valor,
         vencimento: d.vencimento, data: d.data || d.vencimento,
         status: 'aberto', recebidoEm: null, formaRecebimento: null,
+        pago: 0, saldo: valor, pagamentos: [],
         origem: d.origem || 'importado', descricao: d.descricao || '',
       };
       break;
     }
+    /**
+     * Abatimento: o cliente pagou UMA PARTE da parcela. Enquanto faltar, a
+     * parcela fica 'parcial' — continua a receber, mas ja' com o que entrou
+     * descontado. Quando o total pago alcanca o valor, vira 'recebido'
+     * sozinho, sem precisar de outro lancamento.
+     */
+    case 'recebivel.abatido': {
+      const r = e.recebiveis[d.recebivelId];
+      if (!r || r.status === 'cancelado') break;
+      const valor = Math.max(0, Math.min(d.valor || 0, (r.saldo === undefined ? r.liquido : r.saldo)));
+      if (!valor) break;
+      r.pagamentos = r.pagamentos || [];
+      r.pagamentos.push({ valor, data: d.data, forma: d.forma || '', obs: d.obs || '' });
+      r.pago = (r.pago || 0) + valor;
+      r.saldo = Math.max(0, r.liquido - r.pago);
+      if (r.saldo === 0) {
+        r.status = 'recebido';
+        r.recebidoEm = d.data;
+        r.formaRecebimento = d.forma || r.tipo;
+      } else {
+        r.status = 'parcial';
+      }
+      break;
+    }
     case 'recebivel.estornado': {
       const r = e.recebiveis[d.recebivelId];
-      if (r) { r.status = 'aberto'; r.recebidoEm = null; }
+      // Estorno desfaz a parcela inteira, inclusive abatimentos parciais: ela
+      // volta a dever tudo. Desfazer so' o ultimo pagamento seria outro evento.
+      if (r) {
+        r.status = 'aberto';
+        r.recebidoEm = null;
+        r.formaRecebimento = null;
+        r.pago = 0;
+        r.saldo = r.liquido;
+        r.pagamentos = [];
+      }
       break;
     }
     /**
@@ -401,10 +442,13 @@ function registrarVenda(e, ev, d) {
       const taxa = aplicaPct(valorParcela, taxaPct);
       taxasTotais += taxa;
       const imediato = (forma === 'dinheiro' || forma === 'pix');
-      // Fiado: a 1a parcela vence na data combinada e as seguintes caem de mes
-      // em mes, no mesmo dia. Cartao segue o prazo de repasse da maquininha.
+      // Fiado: se a venda trouxe uma data para CADA parcela, ela manda — cliente
+      // que combina "dia 10 e depois dia 5" nao cabe numa regra fixa. Sem isso,
+      // a 1a vence na data combinada e as seguintes caem de mes em mes, no mesmo
+      // dia. Cartao segue o prazo de repasse da maquininha.
+      const combinados = Array.isArray(pg.vencimentos) ? pg.vencimentos : null;
       const vencimento = forma === 'fiado'
-        ? somaMesesData(pg.vencimento || d.data, i)
+        ? ((combinados && combinados[i]) || somaMesesData(pg.vencimento || d.data, i))
         : imediato ? d.data : somaDias(d.data, (prazoDias || 30) * (i + 1));
       const rid = d.id + '#' + idxPg + '#' + (i + 1);
       e.recebiveis[rid] = {
@@ -415,6 +459,11 @@ function registrarVenda(e, ev, d) {
         status: imediato ? 'recebido' : 'aberto',
         recebidoEm: imediato ? d.data : null,
         formaRecebimento: imediato ? forma : null,
+        // Fiado nem sempre e' pago inteiro na data: a parcela guarda quanto ja'
+        // entrou, quanto falta e cada abatimento com a sua data.
+        pago: imediato ? valorParcela - taxa : 0,
+        saldo: imediato ? 0 : valorParcela - taxa,
+        pagamentos: imediato ? [{ valor: valorParcela - taxa, data: d.data, forma }] : [],
       };
     });
   });
@@ -503,9 +552,10 @@ export function precoDaVariante(estado, varianteId) {
   return p ? p.precoVenda : 0;
 }
 
-/** Saldo em fiado de um cliente (recebiveis do tipo fiado ainda em aberto). */
+/** Saldo em fiado de um cliente: o que FALTA, ja' descontado o que ele adiantou. */
 export function saldoFiado(estado, clienteId) {
   return Object.values(estado.recebiveis)
-    .filter((r) => r.clienteId === clienteId && r.tipo === 'fiado' && r.status === 'aberto')
-    .reduce((s, r) => s + r.liquido, 0);
+    .filter((r) => r.clienteId === clienteId && r.tipo === 'fiado'
+      && (r.status === 'aberto' || r.status === 'parcial'))
+    .reduce((s, r) => s + (r.saldo === undefined ? r.liquido : r.saldo), 0);
 }
