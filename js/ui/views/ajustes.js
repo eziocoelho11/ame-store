@@ -137,9 +137,15 @@ async function html() {
     </div>
     <table><tbody>
       <tr><td>Identificador</td><td class="dir mono pequeno">${esc(deviceId())}</td></tr>
+      <tr><td>Versão do app</td><td class="dir mono pequeno" id="aj-versao">conferindo…</td></tr>
       <tr><td>Eventos guardados</td><td class="dir num">${num(log.eventos().length)}</td></tr>
       ${uso ? `<tr><td>Espaço usado</td><td class="dir">${(uso.usage / 1048576).toFixed(1).replace('.', ',')} MB</td></tr>` : ''}
     </tbody></table>
+    <div class="barra-botoes mt">
+      <button class="btn" data-acao="buscar-atualizacao">${icone('sincronizar', 16)} Buscar atualização</button>
+    </div>
+    <p class="dica">A versão sai do que está guardado offline neste aparelho. Se ela estiver atrás da versão
+      publicada, toque em "Buscar atualização" — o app baixa a nova e recarrega sozinho.</p>
   </div>
 
   <div class="cartao">
@@ -389,6 +395,38 @@ function ligar(raiz, redesenhar) {
       },
     });
     void m;
+  });
+
+  // ---------------- versao do app ----------------
+
+  // A versao vem do nome do cache do service worker: e' exatamente o que este
+  // aparelho esta' servindo offline, e nao o que o servidor tem.
+  (async () => {
+    const el = raiz.querySelector('#aj-versao');
+    if (!el) return;
+    try {
+      const chaves = await caches.keys();
+      const minha = chaves.find((k) => k.startsWith('ame-store-'));
+      el.textContent = minha || 'sem cache (sempre online)';
+    } catch { el.textContent = 'não disponível'; }
+  })();
+
+  liga(raiz, 'click', '[data-acao="buscar-atualizacao"]', async (ev, el) => {
+    el.disabled = true;
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) { toast('Este aparelho não guarda o app offline.'); return; }
+      await reg.update();
+      // O `controllerchange` em main.js recarrega sozinho quando a nova assume.
+      // Se nao houver versao nova, avisa para nao parecer que travou.
+      setTimeout(() => {
+        if (!reg.installing && !reg.waiting) toast('Já está na versão mais nova.', 'ok');
+      }, 2500);
+    } catch (err) {
+      toast('Não consegui verificar: ' + (err.message || err), 'erro');
+    } finally {
+      el.disabled = false;
+    }
   });
 
   // ---------------- backup ----------------

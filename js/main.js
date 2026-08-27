@@ -70,19 +70,56 @@ export function atualizarStatusSync() {
     : 'Sincronia desligada';
 }
 
+/**
+ * Atualizacao do app.
+ *
+ * O service worker novo ja' assume sozinho (`skipWaiting` + `clients.claim` no
+ * sw.js), mas a tela aberta continua rodando os arquivos velhos que carregou —
+ * por isso "fechar e abrir" virava "fechar e abrir DUAS vezes", e no celular,
+ * onde ninguem fecha o app de verdade, a versao velha ficava semanas.
+ *
+ * Aqui a pagina se recarrega assim que a versao nova assume. Nao recarrega no
+ * meio de uma venda nem com um modal aberto: nesse caso espera o app voltar
+ * para a frente e tentar de novo. Perder um carrinho para "estar atualizado" e'
+ * um mau negocio.
+ */
+let atualizacaoPendente = false;
+let recarregando = false;
+
+function podeRecarregar() {
+  if (document.querySelector('.fundo-modal')) return false;
+  if ((location.hash || '').startsWith('#/vender')) return false;
+  return true;
+}
+
+function aplicarAtualizacao() {
+  if (recarregando) return;
+  if (!podeRecarregar()) {
+    atualizacaoPendente = true;
+    toast('Versão nova pronta. Ela entra quando você sair desta tela.');
+    return;
+  }
+  recarregando = true;
+  location.reload();
+}
+
 async function registrarServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') return;
   try {
+    // Na primeira instalacao o `clients.claim` tambem dispara controllerchange,
+    // e ali nao ha' nada para atualizar — recarregar seria um susto a toa.
+    const jaTinhaControlador = !!navigator.serviceWorker.controller;
     const reg = await navigator.serviceWorker.register('sw.js');
-    reg.addEventListener('updatefound', () => {
-      const novo = reg.installing;
-      if (!novo) return;
-      novo.addEventListener('statechange', () => {
-        if (novo.state === 'installed' && navigator.serviceWorker.controller) {
-          toast('Nova versão disponível. Feche e abra o app para atualizar.');
-        }
-      });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (jaTinhaControlador) aplicarAtualizacao();
+    });
+    window.addEventListener('hashchange', () => { if (atualizacaoPendente) aplicarAtualizacao(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (atualizacaoPendente) { aplicarAtualizacao(); return; }
+      // Voltou para a frente: e' a hora barata de perguntar se saiu versao nova.
+      reg.update().catch(() => {});
     });
   } catch (err) {
     console.warn('service worker não registrou', err);
