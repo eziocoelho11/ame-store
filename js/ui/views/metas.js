@@ -4,7 +4,7 @@
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
 import { resumoMeta, metasDoAno, fluxoCaixaMensal } from '../../domain/consultas.js';
-import { brl, esc, iso, competencia, competenciaBR, competenciaCurta, MESES } from '../../core/fmt.js';
+import { brl, esc, iso, dataBR, competencia, competenciaBR, MESES } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { barraMeta, liga, toast, tag, modalFormulario, confirmar, vista } from '../ui.js';
 
@@ -92,33 +92,51 @@ function cartaoProvisoes(r, caixaDoMes) {
   const faltaCaixa = Math.max(0, r.totalProvisoes - sobra);
 
   return `
-  <div class="cartao">
-    <h3>Provisões de ${esc(competenciaBR(r.comp))}</h3>
-    <div class="lista">
+  <div class="cartao ${r.todasGuardadas ? 'meta-batida' : ''}">
+    <div class="cartao-cabecalho">
+      <div class="crescer"><h3>Provisões de ${esc(competenciaBR(r.comp))}</h3>
+        <div class="texto-2 pequeno">${brl(r.guardado)} guardados de ${brl(r.totalProvisoes)}</div></div>
+      ${r.todasGuardadas ? `<span class="selo-meta pulsa">${icone('check', 14)} Tudo guardado!</span>` : ''}
+    </div>
+
+    ${barraMeta(r.totalProvisoes ? (r.guardado / r.totalProvisoes) * 100 : 0, r.todasGuardadas)}
+
+    <div class="lista mt">
       ${r.provisoes.map((p) => `
-        <div class="item" style="cursor:default">
-          <div class="corpo"><div class="titulo">${esc(p.nome)}</div>
-            <div class="sub">${esc(competenciaCurta(p.de))} a ${esc(competenciaCurta(p.ate))}</div></div>
-          <div class="valor">${brl(p.valor)}
+        <div class="item provisao ${p.feita ? 'guardada' : ''}" style="cursor:default">
+          <label class="caixa-toque" title="Provisão feita?">
+            <input type="checkbox" data-provisao="${esc(p.id)}"${p.feita ? ' checked' : ''}></label>
+          <div class="corpo">
+            <div class="titulo">${esc(p.nome)}
+              ${p.feita ? `<span class="selo-meta pequeno-selo">${icone('check', 12)} Guardado</span>` : ''}</div>
+            <div class="sub">${p.feita
+              ? 'provisão feita' + (p.guardadaEm ? ' em ' + dataBR(p.guardadaEm) : '')
+              : 'Provisão feita? marque quando separar o dinheiro'}</div>
+          </div>
+          <div class="valor ${p.feita ? 'positivo' : ''}">${brl(p.valor)}
             <small><button class="btn btn-p btn-fantasma" data-remover-provisao="${esc(p.id)}">Remover</button></small></div>
         </div>`).join('')}
     </div>
     <hr>
     <div class="flex entre">
-      <span class="negrito">Total a guardar no mês</span>
-      <span class="num negrito">${brl(r.totalProvisoes)}</span>
+      <span class="negrito">${r.todasGuardadas ? 'Guardado no mês' : 'Falta guardar'}</span>
+      <span class="num negrito ${r.todasGuardadas ? 'positivo' : ''}">${brl(r.todasGuardadas ? r.guardado : r.faltaGuardar)}</span>
     </div>
     <div class="flex entre pequeno mt">
       <span class="texto-2">Sobrou de caixa no mês</span>
       <span class="num ${sobra < 0 ? 'negativo' : ''}">${brl(sobra)}</span>
     </div>
-    ${cobre
+    ${r.todasGuardadas
       ? `<div class="aviso aviso-ok mt">${icone('check')}<div>
-          <strong>O mês cobre as provisões.</strong> Sobrou ${brl(sobra - r.totalProvisoes)} depois de guardar tudo.</div></div>`
-      : `<div class="aviso aviso-alerta mt">${icone('alerta')}<div>
-          <strong>Faltam ${brl(faltaCaixa)} de caixa</strong> para guardar tudo o que foi provisionado neste mês.</div></div>`}
-    <p class="dica">O app não sabe quanto você realmente separou — ele compara o que entrou menos o que saiu no mês
-      com o total provisionado. Serve para responder "deu para guardar?", não para controlar a conta da reserva.</p>
+          <strong>Todas as provisões do mês foram guardadas.</strong> ${brl(r.guardado)} separados. 🎉</div></div>`
+      : cobre
+        ? `<div class="aviso aviso-ok mt">${icone('check')}<div>
+            <strong>O mês cobre as provisões.</strong> Sobrou ${brl(sobra - r.totalProvisoes)} depois de guardar tudo.</div></div>`
+        : `<div class="aviso aviso-alerta mt">${icone('alerta')}<div>
+            <strong>Faltam ${brl(faltaCaixa)} de caixa</strong> para guardar tudo o que foi provisionado neste mês.</div></div>`}
+    <p class="dica">A marcação é sua: o app não vê a conta da reserva, então quem sabe se o dinheiro foi separado
+      é você. A linha do caixa acima é outra pergunta — "deu para guardar?" —, e as duas juntas mostram se a
+      provisão saiu do papel.</p>
   </div>`;
 }
 
@@ -205,6 +223,18 @@ function ligar(raiz, redesenhar) {
         toast('Provisão criada.', 'ok');
       },
     });
+  });
+
+  liga(raiz, 'change', '[data-provisao]', async (ev, el) => {
+    const id = el.dataset.provisao;
+    const p = (metas.provisoes || []).find((x) => x.id === id);
+    if (!p) return;
+    if (el.checked) {
+      await acoes.marcarProvisao(id, comp, p.valor);
+      toast(`${p.nome}: guardado. 🎉`, 'ok');
+    } else {
+      await acoes.desmarcarProvisao(id, comp);
+    }
   });
 
   liga(raiz, 'click', '[data-remover-provisao]', async (ev, el) => {

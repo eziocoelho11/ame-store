@@ -182,9 +182,15 @@ Nos meses que ainda não chegaram, o realizado já mostra o fiado **contratado**
 para aquele mês. Por isso a diferença desses meses aparece em cinza, e não em
 vermelho: não é meta perdida, é meta em andamento.
 
-As **provisões** comparam o total a guardar no mês com o que sobrou de caixa
-(entrou menos saiu). O app não sabe quanto você realmente separou na conta —
-ele responde "deu para guardar?", não controla a reserva.
+Cada **provisão** tem a marcação **"Provisão feita?"**. Ao marcar, a linha
+inteira fica verde, ganha o selo "Guardado" e registra a data. Quando todas as
+provisões do mês estão marcadas, o cartão inteiro comemora, igual à meta de
+venda. A marcação é por mês: guardar em agosto não marca setembro.
+
+A marcação é sua, não do app: ele não vê a conta da reserva, então quem sabe se
+o dinheiro foi separado é você. A linha "sobrou de caixa no mês" responde outra
+pergunta — *deu para guardar?* — e as duas juntas mostram se a provisão saiu do
+papel.
 
 ### Custo médio ponderado
 Cada entrada recalcula o custo médio da peça. Se você comprou 10 a R$ 50 e depois

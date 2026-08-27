@@ -441,6 +441,17 @@ tr.destaque-linha td { background: var(--roxo-suave); }
 .selo-meta.pulsa { animation: pulso-meta 1.6s ease-in-out 3; }
 @media (prefers-reduced-motion: reduce) { .selo-meta.pulsa { animation: none; } }
 
+/* Provisão marcada como guardada: a linha inteira comemora, não só o texto. */
+.item.provisao { align-items: flex-start; }
+.item.provisao.guardada {
+  background: var(--verde-suave);
+  border-radius: var(--r); border-bottom-color: transparent;
+}
+.item.provisao.guardada .titulo { color: var(--verde); }
+.selo-meta.pequeno-selo {
+  font-size: .68rem; padding: .1rem .45rem; margin-left: .4rem; vertical-align: middle;
+}
+
 .meta-numeros { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: .55rem; }
 .meta-numeros > div { min-width: 96px; }
 .meta-numeros .rotulo { font-size: .72rem; color: var(--texto-3); font-weight: 600;

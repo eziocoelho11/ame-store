@@ -321,6 +321,22 @@ export async function baixarVarios(ids, forma, data) {
   })));
 }
 
+// ---------------- metas ----------------
+
+/**
+ * Marca que a provisao do mes foi guardada. E' marcacao manual: o app nao ve' a
+ * conta da reserva, entao quem sabe se o dinheiro foi separado e' o dono.
+ */
+export function marcarProvisao(provisaoId, comp, valor) {
+  return log.registrar('provisao.guardada', {
+    provisaoId, competencia: comp, valor: valor || 0, data: iso(),
+  });
+}
+
+export function desmarcarProvisao(provisaoId, comp) {
+  return log.registrar('provisao.desfeita', { provisaoId, competencia: comp });
+}
+
 export function lancarImposto({ comp, valor, data, tipo = 'DAS-MEI', pago = true }) {
   return log.registrar('imposto.lancado', {
     id: novoId(), competencia: comp, valor, data: data || iso(), tipo, pago,

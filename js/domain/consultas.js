@@ -325,15 +325,24 @@ export function provisoesDoMes(config, comp) {
 export function resumoMeta(estado, comp) {
   const meta = metaDoMes(estado.config, comp);
   const { total, porTipo } = realizadoDaMeta(estado, comp);
-  const provisoes = provisoesDoMes(estado.config, comp);
+  const feitas = estado.provisoesFeitas || {};
+  // Cada provisao carrega se ja' foi guardada NESTE mes — a marcacao e' por
+  // mes, entao guardar em agosto nao marca setembro.
+  const provisoes = provisoesDoMes(estado.config, comp).map((p) => ({
+    ...p, feita: !!feitas[p.id + '|' + comp],
+    guardadaEm: (feitas[p.id + '|' + comp] || {}).data || null,
+  }));
+  const totalProvisoes = provisoes.reduce((s, p) => s + (p.valor || 0), 0);
+  const guardado = provisoes.filter((p) => p.feita).reduce((s, p) => s + (p.valor || 0), 0);
   return {
     comp, meta, realizado: total, porTipo,
     falta: Math.max(0, meta - total),
     excedente: Math.max(0, total - meta),
     pct: meta > 0 ? (total / meta) * 100 : null,
     batida: meta > 0 && total >= meta,
-    provisoes,
-    totalProvisoes: provisoes.reduce((s, p) => s + (p.valor || 0), 0),
+    provisoes, totalProvisoes, guardado,
+    faltaGuardar: Math.max(0, totalProvisoes - guardado),
+    todasGuardadas: provisoes.length > 0 && provisoes.every((p) => p.feita),
   };
 }
 

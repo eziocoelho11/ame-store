@@ -67,6 +67,7 @@ export function estadoInicial() {
     despesas: {},
     recebiveis: {},
     impostos: {},
+    provisoesFeitas: {},
     movimentos: [],
     contadores: { venda: 0 },
     totalEventos: 0,
@@ -230,6 +231,21 @@ export function aplicar(e, ev) {
       if (r) { r.status = 'aberto'; r.recebidoEm = null; }
       break;
     }
+    /**
+     * Provisao guardada no mes. E' marcacao manual porque so' o dono sabe se o
+     * dinheiro foi mesmo separado — o app nao ve' a conta da reserva.
+     * A chave junta provisao e competencia: marcar agosto nao marca setembro.
+     */
+    case 'provisao.guardada':
+      e.provisoesFeitas[d.provisaoId + '|' + d.competencia] = {
+        provisaoId: d.provisaoId, competencia: d.competencia,
+        valor: d.valor || 0, data: d.data || null,
+      };
+      break;
+    case 'provisao.desfeita':
+      delete e.provisoesFeitas[d.provisaoId + '|' + d.competencia];
+      break;
+
     case 'imposto.lancado':
       e.impostos[d.id] = {
         id: d.id, competencia: d.competencia, tipo: d.tipo || 'DAS-MEI',
