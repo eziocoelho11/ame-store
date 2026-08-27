@@ -295,9 +295,15 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
 
   const lista = [...meses.values()].sort((a, b) => a.comp.localeCompare(b.comp));
   for (const m of lista) {
-    m.entradasTotal = m.entradas + m.entradasPrevistas;
-    m.saidasTotal = m.saidas + m.saidasPrevistas;
+    // Mes que ja' chegou mostra SO' o realizado. Parcela que ainda nao foi
+    // recebida nao entrou no caixa, entao nao pode compor o resultado do mes —
+    // misturar previsao com dinheiro na conta era o jeito mais facil de o mes
+    // parecer melhor do que foi. O previsto do mes corrente continua a mao, em
+    // `entradasPrevistas`, para a tela dizer "ainda este mes" em separado.
+    m.entradasTotal = m.futuro ? m.entradas + m.entradasPrevistas : m.entradas;
+    m.saidasTotal = m.futuro ? m.saidas + m.saidasPrevistas : m.saidas;
     m.saldo = m.entradasTotal - m.saidasTotal;
+    m.realizado = m.entradas - m.saidas;
     m.temPrevisto = (m.entradasPrevistas + m.saidasPrevistas) > 0;
   }
   return { meses: lista, de: primeiro, ate: ultimo, compAtual };
