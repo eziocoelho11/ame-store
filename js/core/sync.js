@@ -16,6 +16,8 @@ const API = 'https://api.github.com';
 let cfg = { repo: '', token: '', ramo: 'main' };
 let shas = {};           // caminho -> sha conhecido
 let ultima = null;
+let ultimoErro = null;      // {mensagem, quando} da ultima tentativa que falhou
+let ultimoSucessoMs = null; // quando a sincronia funcionou pela ultima vez
 let etagArvore = null;   // marca da ultima leitura da arvore, para consulta condicional
 let intervaloSegundos = 45;
 let emAndamento = null;
@@ -24,12 +26,14 @@ export async function iniciar() {
   cfg = (await db.getMeta('sync.config')) || { repo: '', token: '', ramo: 'main' };
   shas = (await db.getMeta('sync.shas')) || {};
   ultima = await db.getMeta('sync.ultima');
+  ultimoErro = await db.getMeta('sync.erro');
+  ultimoSucessoMs = await db.getMeta('sync.sucessoMs');
   etagArvore = await db.getMeta('sync.etag');
   intervaloSegundos = (await db.getMeta('sync.intervalo')) || 45;
 }
 
 export function estadoSincronia() {
-  return { configurada: !!(cfg.repo && cfg.token), repo: cfg.repo, ramo: cfg.ramo, ultima };
+  return { configurada: !!(cfg.repo && cfg.token), repo: cfg.repo, ramo: cfg.ramo, ultima, ultimoErro, ultimoSucessoMs };
 }
 
 export function configuracao() {
@@ -164,12 +168,19 @@ function desserializar(texto) {
   return saida;
 }
 
-async function puxar() {
+/**
+ * Le' o repositorio e importa o que ainda nao existe aqui.
+ *
+ * `forcar` ignora o ETag guardado e le' a arvore de novo do zero. Sincronia
+ * manual sempre forca: quem toca no botao quer que o app OLHE, nao que ele
+ * responda "nada mudou" com base numa marca antiga.
+ */
+async function puxar(forcar = false) {
   let arvore;
   try {
     arvore = await api(
       `/repos/${cfg.repo}/git/trees/${encodeURIComponent(cfg.ramo)}?recursive=1`,
-      { etag: etagArvore }
+      { etag: forcar ? null : etagArvore }
     );
   } catch (err) {
     // Repositorio recem-criado, sem nenhum commit: o GitHub responde 409
@@ -181,7 +192,12 @@ async function puxar() {
   // Nada mudou desde a ultima consulta: sai sem baixar nada e sem gastar cota.
   if (arvore.naoModificado) return 0;
   if (arvore.naoExiste) return 0; // o ramo ainda nao existe
-  if (arvore._etag) { etagArvore = arvore._etag; await db.setMeta('sync.etag', etagArvore); }
+
+  // O ETag so' e' guardado no FIM, depois de tudo importado. Guardar aqui em
+  // cima foi um bug real: se o download de um arquivo falhasse no meio, a marca
+  // ja' estava salva e o GitHub passava a responder 304 para sempre — o
+  // aparelho dizia "0 recebidos" e nunca mais enxergava aqueles eventos.
+  const etagNovo = arvore._etag;
 
   const arquivos = (arvore.tree || []).filter(
     (n) => n.type === 'blob' && n.path.startsWith('eventos/') && n.path.endsWith('.jsonl')
@@ -198,7 +214,21 @@ async function puxar() {
     shas[arq.path] = arq.sha;
   }
   await db.setMeta('sync.shas', shas);
+  if (etagNovo) { etagArvore = etagNovo; await db.setMeta('sync.etag', etagNovo); }
   return importados;
+}
+
+/**
+ * Esquece o que este aparelho acha que ja' leu e busca o repositorio inteiro de
+ * novo. Serve para consertar um aparelho que ficou para tras — evento repetido
+ * e' descartado pelo id, entao reler tudo nao duplica nada.
+ */
+export async function repararLeitura() {
+  etagArvore = null;
+  shas = {};
+  await db.setMeta('sync.etag', null);
+  await db.setMeta('sync.shas', shas);
+  return sincronizar({ manual: true });
 }
 
 // ---------------- empurrar ----------------
@@ -280,11 +310,21 @@ export async function sincronizar({ manual = false } = {}) {
 
   emAndamento = (async () => {
     try {
-      const recebidos = await puxar();
+      const recebidos = await puxar(manual);
       const enviados = await empurrar();
       ultima = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      ultimoSucessoMs = Date.now();
+      ultimoErro = null;
       await db.setMeta('sync.ultima', ultima);
+      await db.setMeta('sync.sucessoMs', ultimoSucessoMs);
+      await db.setMeta('sync.erro', null);
       return { enviados, recebidos };
+    } catch (err) {
+      // Falha em segundo plano nao pode sumir em silencio: o app fica mostrando
+      // numero velho e ninguem desconfia. Guarda o motivo para a tela avisar.
+      ultimoErro = { mensagem: err.message || String(err), quando: Date.now() };
+      await db.setMeta('sync.erro', ultimoErro);
+      throw err;
     } finally {
       emAndamento = null;
     }

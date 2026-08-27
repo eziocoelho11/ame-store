@@ -9,6 +9,7 @@ import { icone } from '../icones.js';
 import { kpi, barra, barraMeta, liga , vista } from '../ui.js';
 import { barras as grafBarras, linhas as grafLinhas } from '../graficos.js';
 import { irPara } from '../router.js';
+import * as sync from '../../core/sync.js';
 
 export async function render(raiz) {
   const desenhar = vista(raiz, html, ligar);
@@ -267,6 +268,23 @@ function avisos(e, dre, receber, hoje) {
       O DAS mensal e o teto anual mudam por lei — preencha os valores vigentes para a DRE e o medidor de teto ficarem corretos.
       <a href="#/ajustes">Ajustes</a></div></div>`);
   }
+  // Sincronia quebrada e' falha silenciosa: o app mostra numero velho e ninguem
+  // desconfia. Aconteceu em 26/08/2026 — o celular ficou horas com R$ 0,00
+  // enquanto o PC tinha tudo. Enquanto estiver falhando, a tela diz isso.
+  const sinc = sync.estadoSincronia();
+  const horas = sinc.ultimoSucessoMs ? (Date.now() - sinc.ultimoSucessoMs) / 3600000 : null;
+  if (sinc.configurada && sinc.ultimoErro) {
+    lista.unshift(`<div class="aviso aviso-erro">${icone('alerta')}<div>
+      <strong>A sincronia falhou neste aparelho.</strong>
+      ${esc(sinc.ultimoErro.mensagem)}. Enquanto não voltar, o que você vê aqui pode estar
+      atrasado em relação aos outros aparelhos. <a href="#/ajustes">Resolver em Ajustes</a></div></div>`);
+  } else if (sinc.configurada && horas !== null && horas >= 12) {
+    lista.unshift(`<div class="aviso aviso-alerta">${icone('alerta')}<div>
+      <strong>Faz ${Math.floor(horas)} horas que este aparelho não sincroniza.</strong>
+      Toque no botão de sincronizar, no alto da tela, para buscar o que os outros aparelhos
+      lançaram.</div></div>`);
+  }
+
   if (receber.nVencidos) {
     lista.push(`<div class="aviso aviso-alerta">${icone('alerta')}<div>
       <strong>${receber.nVencidos} recebimento(s) vencido(s): ${brl(receber.vencidos)}.</strong>

@@ -103,8 +103,13 @@ async function html() {
         <div class="dica">Só roda com o app aberto e na frente. Consulta que não traz novidade
           não conta no limite do GitHub, então intervalo curto não custa nada.</div>
       </div>
+      ${s.ultimoErro ? `<div class="aviso aviso-erro mt">${icone('alerta')}<div>
+        <strong>Última tentativa falhou.</strong> ${esc(s.ultimoErro.mensagem)}
+        ${s.ultimoErro.quando ? '<br><span class="pequeno">em ' + esc(new Date(s.ultimoErro.quando).toLocaleString('pt-BR')) + '</span>' : ''}
+        </div></div>` : ''}
       <div class="barra-botoes mt">
         <button class="btn btn-primario" data-acao="sincronizar">${icone('sincronizar', 16)} Sincronizar agora</button>
+        <button class="btn" data-acao="reparar-sync">Buscar tudo de novo</button>
         <button class="btn" data-acao="config-sync">Alterar</button>
         <button class="btn btn-perigo" data-acao="desligar-sync">Desligar</button>
       </div>`
@@ -395,6 +400,18 @@ function ligar(raiz, redesenhar) {
       },
     });
     void m;
+  });
+
+  liga(raiz, 'click', '[data-acao="reparar-sync"]', async (ev, el) => {
+    el.disabled = true;
+    try {
+      const r = await sync.repararLeitura();
+      toast(r.recebidos
+        ? `${num(r.recebidos)} lançamento(s) recuperado(s) do repositório.`
+        : 'Nada faltando: este aparelho já está completo.', 'ok');
+    } catch (err) {
+      toast('Não consegui: ' + (err.message || err), 'erro');
+    } finally { el.disabled = false; }
   });
 
   // ---------------- versao do app ----------------
