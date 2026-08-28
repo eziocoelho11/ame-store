@@ -4,6 +4,7 @@ import * as acoes from '../../domain/acoes.js';
 import { saldoFiado, nomeVariante } from '../../core/state.js';
 import { recebiveis, saldoDe } from '../../domain/consultas.js';
 import { abrirRecebimento } from '../receber.js';
+import { abrirEdicaoParcela } from '../editar-parcela.js';
 import { extratoCliente, imprimirFolha } from '../impressao.js';
 import { brl, esc, dataBR, iso, num } from '../../core/fmt.js';
 import { icone } from '../icones.js';
@@ -77,7 +78,10 @@ function html(clienteId) {
           <div class="sub">vence ${dataBR(r.vencimento)} ${r.vencimento < iso() ? tag('vencido', 'erro') : ''}</div></div>
         <div class="valor">${brl(saldoDe(r))}
           ${r.status === 'parcial' ? `<small class="texto-3">de ${brl(r.liquido)}</small>` : ''}
-          <small><button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button></small></div>
+          <small class="acoes-celula">
+            <button class="btn btn-p btn-icone btn-fantasma" data-editar="${esc(r.id)}"
+              title="Editar data e valor" aria-label="Editar parcela">${icone('editar', 16)}</button>
+            <button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button></small></div>
       </div>`).join('')}</div>
   </div>` : ''}
 
@@ -108,6 +112,10 @@ function ligar(raiz, clienteId) {
   liga(raiz, 'click', '[data-receber]', (ev, el) => {
     const r = log.estado().recebiveis[el.dataset.receber];
     if (r) abrirRecebimento({ recebivel: r, nomeCliente: c.nome });
+  });
+  liga(raiz, 'click', '[data-editar]', (ev, el) => {
+    const r = log.estado().recebiveis[el.dataset.editar];
+    if (r) abrirEdicaoParcela({ recebivel: r, nomeCliente: c.nome });
   });
   liga(raiz, 'click', '[data-acao="extrato"]', () => {
     imprimirFolha(extratoCliente(log.estado(), clienteId));

@@ -320,6 +320,20 @@ export function abaterRecebivel(recebivelId, valor, { forma = '', data, obs = ''
   });
 }
 
+/**
+ * Corrige uma parcela em aberto: data de vencimento e/ou valor.
+ * `campos` = { vencimento?, bruto? } — bruto em centavos, antes da taxa.
+ * Nao apaga nada: e' um evento novo por cima, e o motivo fica no log.
+ */
+export function editarRecebivel(recebivelId, campos, motivo = '') {
+  const limpos = {};
+  if (campos.vencimento) limpos.vencimento = campos.vencimento;
+  if (campos.bruto !== undefined && campos.bruto !== null) limpos.bruto = campos.bruto;
+  return log.registrar('recebivel.editado', {
+    recebivelId, campos: limpos, motivo, data: iso(),
+  });
+}
+
 export function estornarRecebivel(recebivelId) {
   return log.registrar('recebivel.estornado', { recebivelId });
 }

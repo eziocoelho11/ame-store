@@ -327,6 +327,11 @@ input.invalido, select.invalido { border-color: var(--vermelho); }
 .filtros { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: .9rem; }
 .filtros .campo-grupo { margin-bottom: 0; }
 .filtros select, .filtros input { min-width: 130px; }
+.filtros .busca input { min-width: 190px; }
+
+/* Editar + Receber na mesma celula: em tela estreita o icone nao pode
+   empurrar o botao para a linha de baixo. */
+.acoes-celula { display: inline-flex; gap: .3rem; align-items: center; justify-content: flex-end; }
 
 /* ---------------- tabelas e listas ---------------- */
 

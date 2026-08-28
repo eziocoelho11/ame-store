@@ -111,14 +111,62 @@ vira venda, porque a planilha guarda o valor e a descrição, não as peças, e
 sem peça não há custo: a DRE mostraria margem de 100%.
 
 ### Receber
-Em **Financeiro › A receber** ficam as parcelas de cartão e os fiados em aberto.
-Quando o repasse da maquininha cair, selecione as parcelas e marque como recebidas.
+Em **Financeiro › A receber** ficam as parcelas de cartão e os fiados em aberto,
+**agrupadas por mês de vencimento** — um quadro por mês, com o total do mês no
+cabeçalho. Quando o repasse da maquininha cair, selecione as parcelas e marque
+como recebidas.
+
+**Parcela de mês passado não fica para trás.** Ela sobe para o quadro do mês
+atual, marcada como **vencida**, ao lado do que vence agora. O motivo é
+prático: atrasado é o primeiro a cobrar, e uma parcela deixada num cabeçalho de
+março nunca mais é olhada. A data original continua na linha, para saber de
+quando é o atraso.
 
 A tabela **Previsão de entrada por mês**, no topo dessa aba, mostra quanto ainda
 tem para entrar em cada um dos próximos seis meses, separando cartão de fiado.
 É onde o fiado parcelado aparece antes de o mês chegar. Parcela vencida aparece
 no mês atual, porque é dinheiro que já deveria ter entrado. Previsão não é caixa:
-o valor só entra no fluxo de caixa quando a parcela é baixada.
+o valor só entra no fluxo de caixa quando a parcela é baixada. Essa tabela é
+sempre o total geral: ela não muda com o filtro.
+
+### Filtrar A receber e Devedores
+As duas abas têm filtro em cima, e o filtro fica valendo enquanto a tela estiver
+aberta.
+
+Em **A receber**: busca por cliente, origem ou nº da venda; **Situação** (todas,
+só vencidas, só a vencer); e **Tipo** (cartão, fiado, outros). Com filtro ligado,
+uma linha abaixo diz quantas parcelas estão sendo mostradas do total.
+
+Em **Devedores**: busca por nome ou telefone; **Mostrar** (todos, só com parcelas
+vencidas, só quem está em dia); e **Ordenar por** (mais vencido, nome A–Z, maior
+saldo). O padrão continua sendo *mais vencido* — quem deve há mais tempo primeiro.
+
+Mexer no filtro limpa as parcelas marcadas, de propósito: a barra de seleção não
+pode somar dinheiro de parcela que saiu da tela.
+
+### Corrigir uma parcela (data e valor)
+Toda parcela em aberto ou vencida tem um **ícone de lápis** ao lado do botão
+Receber — em A receber, em Devedores, na ficha da cliente e no detalhe da venda.
+Ele abre uma janela onde dá para mudar o **vencimento** e o **valor**, com espaço
+para anotar o motivo.
+
+Serve para o que acontece na porta da loja: *"passa pro dia 10"*, *"deixa 150 que
+eu fecho"*. Antes disso, o único jeito era estornar e lançar de novo, o que
+jogava fora o histórico do que já tinha sido pago.
+
+Três coisas que valem saber:
+
+- **Nada é apagado.** A correção é um lançamento novo por cima, com data, motivo
+  e aparelho — o histórico continua inteiro e a sincronia leva a correção junto.
+- **O que já foi pago continua pago.** Se o valor novo for menor ou igual ao que
+  a cliente já adiantou, a parcela é dada como **quitada** na hora, e a janela
+  avisa antes de salvar.
+- **A receita da venda não muda na DRE.** Reduzir uma parcela depois da venda é
+  desconto concedido, não venda menor. O que muda é quanto a cliente ainda deve e
+  quanto entra no caixa. Em parcela de cartão, a taxa é recalculada sobre o valor
+  novo e a dedução na DRE acompanha.
+
+Parcela já recebida não é editada: para mexer nela, **estorne** primeiro.
 
 ---
 

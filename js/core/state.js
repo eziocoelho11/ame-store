@@ -258,6 +258,54 @@ export function aplicar(e, ev) {
       }
       break;
     }
+    /**
+     * Correcao de uma parcela em aberto: mudou a data combinada ou o valor.
+     * Fiado se renegocia na porta da loja ("passa pro dia 10", "deixa 150 que
+     * eu fecho"), e ate' agora a unica saida era estornar e lancar de novo.
+     *
+     * O valor editado e' o BRUTO. A taxa e' recalculada pelo percentual que a
+     * parcela ja' tinha, e o liquido sai da diferenca. Como a taxa entra na DRE
+     * pela venda, a venda de origem e' ajustada pela diferenca — senao a DRE
+     * passaria a deduzir uma taxa que nao existe mais.
+     *
+     * A RECEITA da venda NAO muda: o que foi vendido continua o que foi
+     * vendido. Reduzir a parcela e' desconto dado depois, nao venda menor. A
+     * tela avisa isso na hora de salvar.
+     */
+    case 'recebivel.editado': {
+      const r = e.recebiveis[d.recebivelId];
+      if (!r || r.status === 'cancelado') break;
+      const c = d.campos || {};
+      if (c.vencimento) r.vencimento = c.vencimento;
+      if (c.bruto !== undefined && c.bruto !== null) {
+        const bruto = Math.max(0, c.bruto);
+        const taxa = aplicaPct(bruto, r.taxaPct || 0);
+        const venda = r.vendaId ? e.vendas[r.vendaId] : null;
+        if (venda) venda.totais.taxas += taxa - (r.taxa || 0);
+        r.bruto = bruto;
+        r.taxa = taxa;
+        r.liquido = bruto - taxa;
+      }
+      // Refaz o que falta a partir do que ja' entrou de verdade. Isso tambem
+      // cobre a ordem inversa no replay (a baixa chegando de outro aparelho
+      // antes da edicao): quem manda e' a soma dos pagamentos, nao o campo.
+      const pago = (r.pagamentos || []).reduce((soma, pg) => soma + pg.valor, 0);
+      r.pago = pago;
+      r.saldo = Math.max(0, r.liquido - pago);
+      if (r.saldo === 0 && pago > 0) {
+        r.status = 'recebido';
+        const ultimo = (r.pagamentos || [])[r.pagamentos.length - 1];
+        r.recebidoEm = r.recebidoEm || (ultimo ? ultimo.data : d.data || null);
+        r.formaRecebimento = r.formaRecebimento || (ultimo ? ultimo.forma : null) || r.tipo;
+      } else {
+        r.status = pago > 0 ? 'parcial' : 'aberto';
+        r.recebidoEm = null;
+        r.formaRecebimento = null;
+      }
+      r.editadoEm = ev.ts;
+      r.motivoEdicao = d.motivo || '';
+      break;
+    }
     case 'recebivel.estornado': {
       const r = e.recebiveis[d.recebivelId];
       // Estorno desfaz a parcela inteira, inclusive abatimentos parciais: ela

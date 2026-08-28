@@ -3,7 +3,7 @@
 // a VERSAO muda) e nada de rede para dados — os dados moram no IndexedDB.
 // A API do GitHub nunca passa por aqui: sincronia precisa da resposta real.
 
-const VERSAO = 'ame-store-v17';
+const VERSAO = 'ame-store-v18';
 
 const ARQUIVOS = [
   './',
@@ -39,6 +39,7 @@ const ARQUIVOS = [
   './js/ui/views/inicio.js',
   './js/ui/views/mais.js',
   './js/ui/receber.js',
+  './js/ui/editar-parcela.js',
   './js/ui/impressao.js',
   './js/ui/views/metas.js',
   './js/ui/views/pagamento.js',

@@ -8,6 +8,7 @@ import { brl, esc, dataBR, pct, iso } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, confirmar, tag, abrirModal , vista } from '../ui.js';
 import { abrirRecebimento } from '../receber.js';
+import { abrirEdicaoParcela } from '../editar-parcela.js';
 import { comprovanteVenda, imprimirFolha } from '../impressao.js';
 
 export async function render(raiz, params) {
@@ -87,7 +88,10 @@ function html(vendaId) {
           : r.status === 'parcial' ? tag('parcial', 'alerta')
           : r.vencimento < iso() ? tag('vencido', 'erro') : tag('a receber', 'alerta')}</td>
         <td class="dir">${(r.status === 'aberto' || r.status === 'parcial')
-          ? `<button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button>`
+          ? `<div class="acoes-celula">
+              <button class="btn btn-p btn-icone btn-fantasma" data-editar="${esc(r.id)}"
+                title="Editar data e valor" aria-label="Editar parcela">${icone('editar', 16)}</button>
+              <button class="btn btn-p" data-receber="${esc(r.id)}">Receber</button></div>`
           : r.status === 'recebido' ? `<button class="btn btn-p btn-fantasma" data-estornar="${esc(r.id)}">Estornar</button>` : ''}</td>
       </tr>`).join('')}</tbody>
     </table></div>
@@ -125,6 +129,12 @@ function ligar(raiz, vendaId) {
     const r = e.recebiveis[el.dataset.receber];
     const c = v.clienteId ? e.clientes[v.clienteId] : null;
     if (r) abrirRecebimento({ recebivel: r, nomeCliente: c ? c.nome : '' });
+  });
+  liga(raiz, 'click', '[data-editar]', (ev, el) => {
+    const atual = log.estado();
+    const r = atual.recebiveis[el.dataset.editar];
+    const c = v.clienteId ? atual.clientes[v.clienteId] : null;
+    if (r) abrirEdicaoParcela({ recebivel: r, nomeCliente: c ? c.nome : '' });
   });
   liga(raiz, 'click', '[data-estornar]', async (ev, el) => {
     const ok = await confirmar('Estornar recebimento', 'A parcela volta para "a receber".', { textoOk: 'Estornar' });
