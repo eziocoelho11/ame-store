@@ -133,6 +133,60 @@ export function arquivarVariante(id) {
   return log.registrar('variante.arquivada', { id });
 }
 
+/** Variantes de um produto que estao numa cor. Cor unica e' a string vazia. */
+function variantesDaCor(produtoId, cor) {
+  const e = est();
+  const p = e.produtos[produtoId];
+  if (!p) return [];
+  return p.variantes.map((id) => e.variantes[id]).filter((v) => v && (v.cor || '') === (cor || ''));
+}
+
+/**
+ * Renomeia uma cor em TODAS as variantes do produto de uma vez.
+ *
+ * Corrigir "Off White" para "Off white" item a item e' convite a deixar metade
+ * da grade com o nome velho. SKU e codigo de barras nao mudam de proposito: a
+ * etiqueta ja' impressa e colada na peca continua valendo.
+ */
+export async function renomearCor(produtoId, corAtual, corNova) {
+  const alvo = (corNova || '').trim();
+  const atual = (corAtual || '').trim();
+  if (alvo === atual) return [];
+  const e = est();
+  const p = e.produtos[produtoId];
+  if (!p) throw new Error('Produto não encontrado.');
+
+  const daCor = variantesDaCor(produtoId, atual);
+  if (!daCor.length) throw new Error('Nenhum item nessa cor.');
+
+  // Renomear para uma cor que ja' existe criaria dois itens com o mesmo
+  // tamanho e a mesma cor — duas linhas para o mesmo saldo. Barra antes.
+  const tamanhosAlvo = new Set(variantesDaCor(produtoId, alvo).map((v) => v.tamanho));
+  const colide = daCor.filter((v) => tamanhosAlvo.has(v.tamanho)).map((v) => v.tamanho);
+  if (colide.length) {
+    throw new Error(`Já existe ${alvo || 'cor única'} no tamanho ${colide.join(', ')}. Junte as duas à mão antes.`);
+  }
+
+  return log.registrarVarios(daCor.map((v) => ({
+    tipo: 'variante.editada', dados: { id: v.id, campos: { cor: alvo } },
+  })));
+}
+
+/**
+ * Tira de circulacao (ou traz de volta) todos os itens de uma cor.
+ *
+ * Arquiva, nao apaga: a cor sai da venda e da entrada de compra, mas continua
+ * no historico de movimento e nos relatorios do que ja' foi vendido. Apagar
+ * quebraria a venda antiga que aponta para ela.
+ */
+export async function definirAtivoCor(produtoId, cor, ativo) {
+  const daCor = variantesDaCor(produtoId, cor).filter((v) => !!v.ativo !== !!ativo);
+  if (!daCor.length) return [];
+  return log.registrarVarios(daCor.map((v) => (ativo
+    ? { tipo: 'variante.editada', dados: { id: v.id, campos: { ativo: true } } }
+    : { tipo: 'variante.arquivada', dados: { id: v.id } })));
+}
+
 // ---------------- estoque ----------------
 
 /** entrada({itens:[{varianteId, qtd, custoUnit}], data, fornecedorId, documento, freteTotal, obs}) */

@@ -51,6 +51,7 @@ function html(produtoId) {
   <div class="barra-botoes mb">
     <button class="btn btn-primario" data-acao="entrada">${icone('baixar', 16)} Dar entrada</button>
     <button class="btn" data-acao="add-grade">${icone('mais', 16)} Adicionar tamanho/cor</button>
+    <button class="btn" data-acao="editar-cores">${icone('editar', 16)} Editar cores</button>
     <button class="btn" data-acao="etiquetas">${icone('etiqueta', 16)} Etiquetas</button>
     <button class="btn ${p.ativo ? '' : 'btn-primario'}" data-acao="arquivar">${p.ativo ? 'Arquivar' : 'Reativar'}</button>
   </div>
@@ -166,6 +167,82 @@ function ligar(raiz, produtoId, redesenhar) {
       ],
     });
     liga(m.el, 'click', '[data-tam]', (ev, el) => { ev.preventDefault(); el.classList.toggle('ativa'); });
+  });
+
+  // Cores do produto: corrigir nome e tirar de circulacao o que nao se compra
+  // mais. Trabalha na cor inteira, nao item a item — renomear "Off White" em
+  // seis tamanhos na mao termina com metade da grade com o nome velho.
+  liga(raiz, 'click', '[data-acao="editar-cores"]', () => {
+    const vars = p.variantes.map((id) => e.variantes[id]).filter(Boolean);
+    const cores = new Map();
+    for (const v of vars) {
+      const k = v.cor || '';
+      if (!cores.has(k)) cores.set(k, { cor: k, itens: 0, saldo: 0, ativos: 0 });
+      const c = cores.get(k);
+      c.itens++; c.saldo += v.saldo; if (v.ativo) c.ativos++;
+    }
+    const lista = [...cores.values()];
+
+    const linha = (c, i) => `
+      <div class="campo-grupo" data-cor-bloco="${i}">
+        <label for="cor-${i}">${esc(c.cor || 'Cor única')} ${c.ativos ? '' : tag('arquivada', 'alerta')}</label>
+        <input id="cor-${i}" value="${esc(c.cor)}" data-cor-orig="${esc(c.cor)}"
+               placeholder="Cor única" autocomplete="off">
+        <div class="flex entre centro" style="margin-top:.35rem">
+          <span class="texto-3 pequeno">${c.itens} ${c.itens === 1 ? 'item' : 'itens'} · saldo ${c.saldo}</span>
+          <button type="button" class="btn btn-p ${c.ativos ? 'btn-perigo' : ''}"
+                  data-arquivar-cor="${esc(c.cor)}" data-ativos="${c.ativos}">
+            ${c.ativos ? 'Arquivar cor' : 'Reativar cor'}</button>
+        </div>
+      </div>`;
+
+    const m = abrirModal({
+      titulo: 'Cores de ' + p.nome,
+      corpo: `${lista.map(linha).join('')}
+        <div class="aviso aviso-info">${icone('info')}
+          <div>Corrigir o nome não muda SKU nem código de barras — a etiqueta já colada na peça continua valendo.
+          Arquivar tira a cor da venda e da entrada de compra, mas preserva o histórico do que já foi vendido.</div>
+        </div>`,
+      botoes: [
+        { texto: 'Fechar', acao: (f) => f() },
+        {
+          texto: 'Salvar nomes', classe: 'btn-primario',
+          acao: async (fechar, r) => {
+            const pares = [...r.querySelectorAll('[data-cor-orig]')]
+              .map((el) => ({ de: el.dataset.corOrig, para: (el.value || '').trim() }))
+              .filter((x) => x.de !== x.para);
+            if (!pares.length) { toast('Nenhum nome mudou.'); return; }
+            try {
+              for (const par of pares) await acoes.renomearCor(produtoId, par.de, par.para);
+            } catch (err) {
+              toast(err.message, 'erro');
+              return;
+            }
+            fechar();
+            toast(`${pares.length} ${pares.length === 1 ? 'cor renomeada' : 'cores renomeadas'}.`, 'ok');
+          },
+        },
+      ],
+    });
+
+    liga(m.el, 'click', '[data-arquivar-cor]', async (ev, el) => {
+      ev.preventDefault();
+      const cor = el.dataset.arquivarCor;
+      const ativos = Number(el.dataset.ativos) > 0;
+      const rotulo = cor || 'Cor única';
+      if (ativos) {
+        const alvo = lista.find((c) => c.cor === cor);
+        const aviso = alvo && alvo.saldo > 0
+          ? `Ainda há ${alvo.saldo} peça(s) em estoque nessa cor. Elas somem da tela de vender.`
+          : 'Ela sai da venda e da entrada de compra.';
+        const ok = await confirmar('Arquivar ' + rotulo, `${aviso} O histórico do que já foi vendido continua intacto. Dá para reativar depois.`,
+          { textoOk: 'Arquivar', perigo: true });
+        if (!ok) return;
+      }
+      await acoes.definirAtivoCor(produtoId, cor, !ativos);
+      m.fechar();
+      toast(ativos ? `${rotulo} arquivada.` : `${rotulo} reativada.`, 'ok');
+    });
   });
 
   liga(raiz, 'click', '[data-ajustar]', (ev, el) => {
