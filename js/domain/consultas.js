@@ -276,8 +276,11 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
     }
   }
   for (const d of Object.values(estado.despesas)) {
-    const data = d.dataPagto || d.data;
-    const m = d.pago ? balde(data) : baldePendente(data);
+    // Paga: sai no dia em que de fato saiu (`dataPagto`). Em aberto: vale o
+    // VENCIMENTO (`data`). O `dataPagto` de despesa nao paga e' so' o palpite
+    // gravado no lancamento, e envelhece quando a data e' editada depois — foi
+    // assim que uma despesa remarcada para setembro continuou pesando em agosto.
+    const m = d.pago ? balde(d.dataPagto || d.data) : baldePendente(d.data);
     if (!m) continue;
     if (d.pago) m.saidas += d.valor; else m.saidasPrevistas += d.valor;
   }

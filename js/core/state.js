@@ -169,8 +169,17 @@ export function aplicar(e, ev) {
       break;
     case 'despesa.editada':
       if (e.despesas[d.id]) {
+        // Se ela ja' estava paga ANTES desta edicao, a data de pagamento e'
+        // fato consumado e nao se mexe. Le antes do Object.assign de proposito.
+        const estavaPaga = e.despesas[d.id].pago;
         Object.assign(e.despesas[d.id], d.campos);
-        if (d.campos && d.campos.data) e.despesas[d.id].competencia = competencia(d.campos.data);
+        if (d.campos && d.campos.data) {
+          e.despesas[d.id].competencia = competencia(d.campos.data);
+          // Enquanto nao foi paga, a data de pagamento e' so' expectativa: ela
+          // segue a data nova. Sem isto, remarcar a conta para o mes seguinte
+          // movia a competencia e deixava o caixa preso no mes velho.
+          if (!estavaPaga) e.despesas[d.id].dataPagto = d.campos.data;
+        }
       }
       break;
     case 'despesa.excluida':
