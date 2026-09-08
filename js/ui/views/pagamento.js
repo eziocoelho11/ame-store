@@ -1,7 +1,7 @@
 // pagamento.js — como o cliente paga. Aqui nasce a agenda de recebiveis:
 // credito em 3x nao e' caixa hoje, e o app precisa saber disso.
 import * as log from '../../core/eventlog.js';
-import { taxaPara } from '../../core/state.js';
+import { taxaPara, operadorasAtivas } from '../../core/state.js';
 import { brl, esc, iso, somaDias, somaMesesData, paraCentavos, dataBR, dividirCentavos, aplicaPct } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { abrirModal, toast, liga , vista } from '../ui.js';
@@ -47,13 +47,23 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
           const btn = m.el.querySelectorAll('.modal-rodape .btn')[1];
           if (btn) btn.disabled = true;
           try {
-            await aoConfirmar(linhas.map((l) => ({
+            await aoConfirmar(linhas.map((l) => {
+              // A antecipacao vai gravada no evento, e nao lida da config no
+              // replay: se um dia a operadora deixar de antecipar, as vendas de
+              // hoje continuam contando do jeito que aconteceram.
+              const regra = taxaPara(e.config, l.forma, l.parcelas || 1, l.operadoraId || '');
+              const cartao = l.forma === 'credito' || l.forma === 'debito';
+              return {
               forma: l.forma, valor: l.valor,
               parcelas: (l.forma === 'credito' || l.forma === 'fiado') ? l.parcelas : 1,
               bandeira: l.bandeira || '',
+              operadoraId: cartao ? (l.operadoraId || null) : null,
+              operadora: cartao ? (regra.operadoraNome || '') : '',
+              antecipa: cartao ? regra.antecipa === true : false,
               vencimento: l.forma === 'fiado' ? l.vencimento : undefined,
               vencimentos: l.forma === 'fiado' ? (l.vencimentos || []).slice(0, Math.max(1, l.parcelas || 1)) : undefined,
-            })));
+              };
+            }));
             fechar();
           } catch (err) {
             if (btn) btn.disabled = false;
@@ -81,8 +91,10 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
 
   function linhaHTML(l, i) {
     const nome = (FORMAS.find((f) => f.id === l.forma) || {}).nome || l.forma;
-    const regra = taxaPara(e.config, l.forma, l.parcelas || 1);
+    const regra = taxaPara(e.config, l.forma, l.parcelas || 1, l.operadoraId || '');
     const taxa = aplicaPct(l.valor, regra.taxaPct || 0);
+    const maquinas = operadorasAtivas(e.config);
+    const cartao = l.forma === 'debito' || l.forma === 'credito';
     return `<div class="cartao compacto">
       <div class="flex entre centro">
         <strong>${esc(nome)}</strong>
@@ -96,17 +108,50 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
             `<option value="${n}"${l.parcelas === n ? ' selected' : ''}>${n}x</option>`).join('')}</select></div>` : ''}
         ${l.forma === 'fiado' && (l.parcelas || 1) === 1 ? `<div class="campo-grupo"><label>Vencimento</label>
           <input type="date" data-vencimento="${i}" value="${esc(l.vencimento)}"></div>` : ''}
-        ${l.forma === 'debito' || l.forma === 'credito' ? `<div class="campo-grupo"><label>Bandeira</label>
+        ${cartao && maquinas.length ? `<div class="campo-grupo"><label>Maquininha</label>
+          <select data-operadora="${i}">
+            ${maquinas.map((o) => `<option value="${esc(o.id)}"${l.operadoraId === o.id ? ' selected' : ''}>${esc(o.nome)}</option>`).join('')}
+          </select></div>` : ''}
+        ${cartao ? `<div class="campo-grupo"><label>Bandeira</label>
           <input data-bandeira="${i}" value="${esc(l.bandeira || '')}" placeholder="opcional"></div>` : ''}
       </div>
-      ${(l.forma === 'debito' || l.forma === 'credito')
-        ? `<div class="dica">Taxa ${(regra.taxaPct || 0).toString().replace('.', ',')}% = ${brl(taxa)} · líquido ${brl(l.valor - taxa)}
-            · primeira parcela em ${dataBR(somaDias(iso(), regra.prazoDias || 30))}
-            ${!regra.taxaPct ? '<br><strong>Taxa não configurada</strong> — ajuste em Ajustes › Taxas da maquininha.' : ''}</div>`
-        : ''}
+      ${cartao ? `<div class="dica">${dicaCartaoHTML(l, regra, taxa, maquinas)}</div>` : ''}
       ${l.forma === 'fiado' && (l.parcelas || 1) > 1 ? agendaEditavelHTML(l, i) : ''}
       ${l.forma === 'fiado' ? `<div class="dica">${agendaFiadoHTML(l)}</div>` : ''}
     </div>`;
+  }
+
+  /**
+   * O que a maquininha faz com esse valor, em uma frase. Com antecipacao a
+   * conta e' outra: entra tudo de uma vez, e a taxa e' a da quantidade de
+   * parcelas que a cliente escolheu — 3x custa mais caro que 1x, mesmo caindo
+   * junto. Sem dizer isso na tela, a dona nao entende por que a taxa subiu.
+   */
+  function dicaCartaoHTML(l, regra, taxa, maquinas) {
+    const n = Math.max(1, l.parcelas || 1);
+    const pctTexto = (regra.taxaPct || 0).toString().replace('.', ',');
+    const liquido = l.valor - taxa;
+    const partes = [];
+    if (!maquinas.length) {
+      partes.push('<strong>Nenhuma maquininha cadastrada</strong> — cadastre em Ajustes › Maquininhas'
+        + ' para o app saber a taxa e se a operadora antecipa.');
+    }
+    if (regra.antecipa) {
+      const quando = (regra.prazoDias || 0) === 0
+        ? 'cai <strong>hoje</strong>'
+        : `cai em ${dataBR(somaDias(iso(), regra.prazoDias))} (${regra.prazoDias} dia(s))`;
+      partes.push(`Antecipado${regra.operadoraNome ? ' pela ' + esc(regra.operadoraNome) : ''}:`
+        + ` ${quando} <strong>${brl(liquido)}</strong> de uma vez`
+        + `${n > 1 ? `, mesmo a cliente pagando em ${n}×` : ''}.`);
+      partes.push(`Taxa de ${n}× = ${pctTexto}% = ${brl(taxa)}.`);
+    } else {
+      partes.push(`Taxa ${pctTexto}% = ${brl(taxa)} · líquido ${brl(liquido)}`
+        + ` · primeira parcela em ${dataBR(somaDias(iso(), regra.prazoDias || 30))}.`);
+    }
+    if (!regra.taxaPct) {
+      partes.push('<strong>Taxa não configurada</strong> — ajuste em Ajustes › Taxas da maquininha.');
+    }
+    return partes.join(' ');
   }
 
   /**
@@ -158,10 +203,14 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
   function resumoHTML() {
     let bruto = 0, taxas = 0, hoje = 0, depois = 0;
     for (const l of linhas) {
-      const regra = taxaPara(e.config, l.forma, l.parcelas || 1);
+      const regra = taxaPara(e.config, l.forma, l.parcelas || 1, l.operadoraId || '');
       const taxa = aplicaPct(l.valor, regra.taxaPct || 0);
+      const cartao = l.forma === 'credito' || l.forma === 'debito';
       bruto += l.valor; taxas += taxa;
+      // Cartao antecipado com prazo zero e' caixa de hoje: contar como "a
+      // receber" mostraria a dona esperando um dinheiro que ja' entrou.
       if (l.forma === 'dinheiro' || l.forma === 'pix') hoje += l.valor;
+      else if (cartao && regra.antecipa && (regra.prazoDias || 0) === 0) hoje += l.valor - taxa;
       else depois += l.valor - taxa;
     }
     return `<div class="cartao compacto">
@@ -179,9 +228,11 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     const restante = falta();
     if (restante <= 0 && linhas.length) { toast('O total já está coberto.'); return; }
     const primeiro = forma === 'fiado' ? somaDias(iso(), 30) : '';
+    const maquinas = operadorasAtivas(e.config);
     linhas.push({
       forma,
       valor: Math.max(0, restante),
+      operadoraId: (forma === 'credito' || forma === 'debito') && maquinas.length ? maquinas[0].id : '',
       parcelas: 1,
       bandeira: '',
       vencimento: primeiro,
@@ -236,6 +287,10 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
     desenhar();
   });
   liga(raiz, 'change', '[data-bandeira]', (ev, el) => { linhas[Number(el.dataset.bandeira)].bandeira = el.value; });
+  liga(raiz, 'change', '[data-operadora]', (ev, el) => {
+    linhas[Number(el.dataset.operadora)].operadoraId = el.value;
+    desenhar();
+  });
   liga(raiz, 'change', '[data-vencimento]', (ev, el) => {
     const i = Number(el.dataset.vencimento);
     linhas[i].vencimento = el.value || somaDias(iso(), 30);

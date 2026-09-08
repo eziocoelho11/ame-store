@@ -48,15 +48,17 @@ tela cheia e funciona offline.
    Consulte os valores vigentes no Portal do Empreendedor. O app não preenche
    valor de tributo sozinho, de propósito: esses números mudam por lei todo ano
    e um número errado aqui contamina a DRE inteira.
-2. **Ajustes › Taxas da maquininha** — copie da fatura da sua operadora a taxa de
-   débito e de cada faixa de crédito, e em quantos dias cada parcela cai.
+2. **Ajustes › Maquininhas** — cadastre cada maquininha que você usa (Nubank,
+   PagSeguro, Mercado Pago…) e marque se ela **antecipa**.
+3. **Ajustes › Taxas da maquininha** — para cada maquininha, copie da fatura a
+   taxa de débito e de cada faixa de crédito, e o prazo em que o dinheiro cai.
    **Enquanto estiver zerado, a DRE mostra margem maior do que a real.**
-3. **Ajustes › Canais de venda** — se vende em marketplace, ponha a comissão dele.
-4. **Estoque › Novo produto** — cadastre a peça com os tamanhos e cores.
+4. **Ajustes › Canais de venda** — se vende em marketplace, ponha a comissão dele.
+5. **Estoque › Novo produto** — cadastre a peça com os tamanhos e cores.
    Cada combinação vira um saldo separado, com SKU e código de barras próprios.
-5. **Estoque › Entrada de compra** — lance o que chegou do fornecedor, com o
+6. **Estoque › Entrada de compra** — lance o que chegou do fornecedor, com o
    custo real e o frete. O frete é rateado no custo das peças.
-6. **Vender** — está pronto para o balcão.
+7. **Vender** — está pronto para o balcão.
 
 Quer conhecer as telas antes? **Ajustes › Conhecer o app › Carregar demonstração**
 cria um mês fictício completo. Depois use "Apagar dados deste aparelho" para zerar.
@@ -74,7 +76,10 @@ PIX, cartão e fiado. Se digitar mais dinheiro do que o total, o app calcula o
 troco e não conta a diferença como receita.
 
 - **Dinheiro e PIX** entram no caixa na hora.
-- **Débito e crédito** viram parcelas a receber, já com a taxa descontada.
+- **Débito e crédito** — escolha a **maquininha**. Se ela antecipa (o normal
+  hoje), o valor inteiro entra no caixa já sem as taxas, mesmo a cliente pagando
+  em 3×. Se não antecipa, viram parcelas a receber. A linha embaixo do valor diz
+  exatamente quanto cai e quando.
 - **Fiado** exige um cliente selecionado na venda. Dá para parcelar em até 12×:
   escolha o número de parcelas e a data do **1º vencimento** — as seguintes caem
   de mês em mês, no mesmo dia, sem juros e sem taxa. Cada parcela vira uma linha
@@ -137,6 +142,43 @@ poderia ser justamente a peça que todo mundo troca.
 
 Cancelar uma venda que teve troca desfaz a troca também: a peça nova volta ao
 estoque, a devolvida sai, e a parcela da diferença é cancelada.
+
+### Maquininhas e antecipação
+Cada maquininha cobra a sua taxa, e o app trata uma por uma. Cadastre em
+**Ajustes › Maquininhas** — nome, se **antecipa** e se está em uso — e depois
+crie as faixas de taxa de cada uma em **Ajustes › Taxas da maquininha**.
+
+**Antecipação** é o padrão hoje: a operadora paga a venda inteira de uma vez, já
+descontadas todas as taxas. A cliente parcela com o banco dela; a loja recebe uma
+vez. Com isso ligado:
+
+- crédito em 3× deixa de ser três entradas futuras e passa a ser **uma entrada**;
+- com prazo **0 dias**, o dinheiro entra no caixa no mesmo dia da venda, sem
+  ninguém precisar dar baixa;
+- a taxa cobrada é a da **faixa de parcelas que a cliente escolheu** — 3× custa
+  mais que 1×, mesmo caindo junto. É por isso que a taxa sobe quando ela parcela.
+
+A mesma venda de R$ 300,00 em 3× mostra a diferença entre operadoras:
+
+| Maquininha | Taxa de 3× | Entra no caixa |
+|---|---|---|
+| Nubank | 5,5% | R$ 283,50 |
+| PagSeguro | 7,9% | R$ 276,30 |
+
+No PDV, depois de escolher Crédito, o campo **Maquininha** aparece ao lado das
+parcelas, e a linha embaixo diz em palavras o que vai acontecer: *"Antecipado
+pela Nubank: cai hoje R$ 283,50 de uma vez, mesmo a cliente pagando em 3×."*
+Trocar a maquininha ou o número de parcelas recalcula na hora.
+
+Faixa **sem maquininha** (a "regra geral") vale para qualquer operadora que não
+tenha faixa própria. Vale conferir se cada maquininha tem faixa para todas as
+parcelas que você aceita: sem faixa própria de 7× a 12×, uma venda em 10× cai na
+regra geral, com a taxa e o prazo dela.
+
+**Vendas já lançadas não mudam.** Ligar a antecipação hoje não reescreve o
+passado: cada venda guarda como ela foi recebida no dia em que aconteceu, e o
+crédito parcelado de antes continua com as parcelas futuras que já tinha. Se
+quiser corrigir alguma delas à mão, use o lápis em Financeiro › A receber.
 
 ### Despesas
 Lance tudo que sai: aluguel, energia, embalagem, marketing, pró-labore.

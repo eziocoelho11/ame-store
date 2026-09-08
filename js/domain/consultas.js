@@ -402,12 +402,19 @@ export function rotuloRecebivel(r) {
     loja: 'Venda na loja' };
   const base = nomes[r.tipo] || r.tipo;
   const parc = r.totalParcelas > 1 ? ` ${r.parcela}/${r.totalParcelas}` : '';
+  const maquina = r.operadora ? ' · ' + r.operadora : '';
   // Diferenca de troca tem venda, mas nao e' parcela dela: dizer so'
   // "PIX — venda #12" faria parecer que a venda foi cobrada duas vezes.
-  if (r.origem === 'troca') return `Diferença de troca (${base}) — venda #${r.numeroVenda}`;
+  if (r.origem === 'troca') return `Diferença de troca (${base}${maquina}) — venda #${r.numeroVenda}`;
+  // Antecipado: uma entrada so', mesmo que a cliente tenha dividido em 3x.
+  // Mostrar "1/1" esconderia justamente o que explica a taxa mais alta.
+  if (r.antecipado) {
+    const vezes = (r.parcelasCliente || 1) > 1 ? ` ${r.parcelasCliente}×` : '';
+    return `${base}${vezes} antecipado${maquina} — venda #${r.numeroVenda}`;
+  }
   // Saldo importado nao tem venda registrada aqui: identifica pela origem.
   if (!r.vendaId) return r.descricao ? `${base} — ${r.descricao}` : base;
-  return `${base}${parc} — venda #${r.numeroVenda}`;
+  return `${base}${parc}${maquina} — venda #${r.numeroVenda}`;
 }
 
 // ---------------- relatorios ----------------

@@ -8,7 +8,7 @@
 import * as log from '../core/eventlog.js';
 import * as acoes from '../domain/acoes.js';
 import { listarVariantes } from '../domain/consultas.js';
-import { nomeVariante } from '../core/state.js';
+import { nomeVariante, operadorasAtivas, taxaPara } from '../core/state.js';
 import { brl, esc, iso, normaliza, paraCentavos } from '../core/fmt.js';
 import { icone } from './icones.js';
 import { abrirModal, toast, debounce } from './ui.js';
@@ -21,6 +21,7 @@ const FORMAS = [
   { v: 'fiado', t: 'Fiado' },
 ];
 const IMEDIATAS = ['dinheiro', 'pix'];
+const CARTAO = ['debito', 'credito'];
 
 /**
  * Abre a janela de troca de uma venda.
@@ -89,6 +90,9 @@ export function abrirTroca({ vendaId, aoConcluir }) {
         <div class="campo-grupo"><label for="tr-forma">Como recebeu a diferença</label>
           <select id="tr-forma">${FORMAS.map((f) => `<option value="${f.v}">${f.t}</option>`).join('')}</select></div>
       </div>
+      <div class="campo-grupo" id="tr-maquina-caixa" hidden><label for="tr-maquina">Maquininha</label>
+        <select id="tr-maquina">${operadorasAtivas(log.estado().config)
+          .map((o) => `<option value="${esc(o.id)}">${esc(o.nome)}</option>`).join('')}</select></div>
       <div class="linha">
         <div class="campo-grupo" id="tr-venc-caixa" hidden><label for="tr-venc">Vencimento da diferença</label>
           <input id="tr-venc" type="date" value="${iso()}"></div>
@@ -119,6 +123,9 @@ export function abrirTroca({ vendaId, aoConcluir }) {
             novos.map((n) => ({ varianteId: n.varianteId, qtd: n.qtd, precoUnit: n.precoUnit })), {
               diferenca,
               formaDiferenca: forma,
+              operadoraDiferenca: CARTAO.includes(forma) ? (raizModal.querySelector('#tr-maquina').value || null) : null,
+              antecipaDiferenca: CARTAO.includes(forma)
+                && taxaPara(log.estado().config, forma, 1, raizModal.querySelector('#tr-maquina').value || '').antecipa === true,
               vencimentoDiferenca: (diferenca > 0 && !IMEDIATAS.includes(forma))
                 ? (raizModal.querySelector('#tr-venc').value || data) : null,
               motivo: raizModal.querySelector('#tr-motivo').value,
@@ -215,7 +222,13 @@ export function abrirTroca({ vendaId, aoConcluir }) {
         <strong class="num">${brl(sugerida)}</strong></div>`;
 
     const forma = $('#tr-forma').value;
-    $('#tr-venc-caixa').hidden = !(dif > 0 && !IMEDIATAS.includes(forma));
+    const maquinas = operadorasAtivas(log.estado().config);
+    const noCartao = CARTAO.includes(forma) && maquinas.length > 0;
+    $('#tr-maquina-caixa').hidden = !noCartao;
+    // Cartao antecipado cai de uma vez: nao tem vencimento para escolher.
+    const antecipa = noCartao
+      && taxaPara(log.estado().config, forma, 1, $('#tr-maquina').value || '').antecipa === true;
+    $('#tr-venc-caixa').hidden = !(dif > 0 && !IMEDIATAS.includes(forma) && !antecipa);
     $('#tr-aviso').innerHTML = avisoHTML(dif, forma, sugerida);
   }
 
@@ -231,9 +244,19 @@ export function abrirTroca({ vendaId, aoConcluir }) {
     }
     if (dif !== sugerida) partes.push(`Você mudou a diferença: a conta dava ${brl(sugerida)}.`);
     if (dif > 0) {
-      partes.push(IMEDIATAS.includes(forma)
-        ? `A cliente paga <strong>${brl(dif)}</strong>, que entra no caixa na data da troca.`
-        : `<strong>${brl(dif)}</strong> ficam <strong>a receber</strong> e aparecem em Financeiro.`);
+      const maquinas = operadorasAtivas(log.estado().config);
+      const regra = CARTAO.includes(forma) && maquinas.length
+        ? taxaPara(log.estado().config, forma, 1, $('#tr-maquina').value || '') : null;
+      if (regra && regra.antecipa) {
+        const taxa = Math.round((dif * (regra.taxaPct || 0)) / 100);
+        partes.push(`Antecipado${regra.operadoraNome ? ' pela ' + esc(regra.operadoraNome) : ''}:
+          entram <strong>${brl(dif - taxa)}</strong>${(regra.prazoDias || 0) === 0 ? ' no caixa de hoje'
+            : ' em ' + regra.prazoDias + ' dia(s)'}, já sem a taxa de ${brl(taxa)}.`);
+      } else {
+        partes.push(IMEDIATAS.includes(forma)
+          ? `A cliente paga <strong>${brl(dif)}</strong>, que entra no caixa na data da troca.`
+          : `<strong>${brl(dif)}</strong> ficam <strong>a receber</strong> e aparecem em Financeiro.`);
+      }
     } else if (dif < 0) {
       partes.push(`<span class="negativo">A loja devolve ${brl(-dif)}.</span> Isso reduz a receita do mês da
         troca. O dinheiro que sai não entra sozinho no fluxo de caixa — é o mesmo comportamento da devolução.`);
@@ -289,7 +312,7 @@ export function abrirTroca({ vendaId, aoConcluir }) {
   });
 
   raiz.addEventListener('change', (ev) => {
-    if (ev.target.id === 'tr-forma') pintarConta();
+    if (ev.target.id === 'tr-forma' || ev.target.id === 'tr-maquina') pintarConta();
   });
 
   pintarNovos();

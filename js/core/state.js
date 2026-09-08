@@ -23,7 +23,16 @@ export const CONFIG_PADRAO = {
     { id: 'instagram', nome: 'Instagram / WhatsApp', comissaoPct: 0 },
     { id: 'marketplace', nome: 'Marketplace', comissaoPct: 0 },
   ],
+  // Maquininhas. Nasce vazio: quem instala cadastra as suas em Ajustes, com a
+  // taxa de cada uma. `antecipa` = a operadora paga a venda inteira de uma vez,
+  // ja' descontada a taxa — e' o padrao do mercado hoje, e muda a agenda de
+  // caixa por completo: credito em 3x deixa de ser tres entradas futuras e
+  // passa a ser uma entrada agora.
+  operadoras: [],
   // Taxas comecam em zero: cada maquininha cobra o seu. Preencher em Ajustes.
+  // Regra sem `operadoraId` vale como regra geral, para quem nao usa maquininha
+  // cadastrada — e' o que mantem funcionando o que foi configurado antes das
+  // operadoras existirem.
   taxas: [
     { id: 't-deb', forma: 'debito', parcelasDe: 1, parcelasAte: 1, taxaPct: 0, prazoDias: 1 },
     { id: 't-cred1', forma: 'credito', parcelasDe: 1, parcelasAte: 1, taxaPct: 0, prazoDias: 30 },
@@ -420,14 +429,38 @@ function ajusteEstoque(e, ev, d) {
   });
 }
 
-/** Encontra a regra de taxa da maquininha para a forma e o numero de parcelas. */
-export function taxaPara(config, forma, parcelas) {
+/**
+ * Encontra a regra de taxa para a forma, o numero de parcelas e a maquininha.
+ *
+ * A busca e' em degraus, e a ordem importa: primeiro a regra DA operadora
+ * escolhida; se ela nao tiver faixa para esse numero de parcelas, cai na regra
+ * geral (a sem operadoraId, que e' como as taxas eram antes de existir
+ * operadora); e por ultimo o padrao zerado. Nunca empresta a taxa de OUTRA
+ * operadora: cobrar a taxa da Nubank numa venda da PagSeguro seria um numero
+ * errado que ninguem desconfia.
+ *
+ * Devolve tambem `antecipa` e o nome da operadora, resolvidos da config.
+ */
+export function taxaPara(config, forma, parcelas, operadoraId = '') {
   const lista = config.taxas || [];
-  const achou = lista.find((t) => t.forma === forma && parcelas >= t.parcelasDe && parcelas <= t.parcelasAte);
-  if (achou) return achou;
-  if (forma === 'debito') return { taxaPct: 0, prazoDias: 1 };
-  if (forma === 'credito') return { taxaPct: 0, prazoDias: 30 };
-  return { taxaPct: 0, prazoDias: 0 };
+  const cabe = (t) => t.forma === forma && parcelas >= t.parcelasDe && parcelas <= t.parcelasAte;
+  const op = (config.operadoras || []).find((o) => o.id === operadoraId) || null;
+  const regra = (operadoraId ? lista.filter((t) => t.operadoraId === operadoraId).find(cabe) : null)
+    || lista.filter((t) => !t.operadoraId).find(cabe)
+    || (forma === 'debito' ? { taxaPct: 0, prazoDias: 1 }
+      : forma === 'credito' ? { taxaPct: 0, prazoDias: 30 }
+      : { taxaPct: 0, prazoDias: 0 });
+  return {
+    ...regra,
+    operadoraId: op ? op.id : '',
+    operadoraNome: op ? op.nome : '',
+    antecipa: op ? op.antecipa !== false : false,
+  };
+}
+
+/** Maquininhas em uso, para os seletores das telas. */
+export function operadorasAtivas(config) {
+  return (config.operadoras || []).filter((o) => o.ativa !== false);
 }
 
 // =====================================================================
@@ -492,15 +525,32 @@ function registrarVenda(e, ev, d) {
     const forma = pg.forma;
     // Credito e fiado parcelam; dinheiro, PIX e debito entram de uma vez so'.
     const nParcelas = (forma === 'credito' || forma === 'fiado') ? Math.max(1, pg.parcelas || 1) : 1;
-    const regra = taxaPara(e.config, forma, nParcelas);
+    const regra = taxaPara(e.config, forma, nParcelas, pg.operadoraId || '');
     const taxaPct = (pg.taxaPct === undefined || pg.taxaPct === null) ? regra.taxaPct : pg.taxaPct;
     const prazoDias = (pg.prazoDias === undefined || pg.prazoDias === null) ? regra.prazoDias : pg.prazoDias;
-    const valores = dividirCentavos(pg.valor, nParcelas);
+    /**
+     * ANTECIPACAO. Hoje as operadoras pagam a venda inteira de uma vez, ja'
+     * descontada a taxa da quantidade de parcelas. A cliente paga em 3x para o
+     * banco DELA; a loja recebe uma vez. Entao e' UM recebivel, nao tres.
+     *
+     * A decisao vem do EVENTO, nao da config: `pg.antecipa` foi gravado como
+     * verdadeiro pela tela no dia da venda. Se viesse da config, ligar a
+     * antecipacao hoje reescreveria a agenda de todas as vendas antigas no
+     * replay — venda de marco em 3x viraria caixa de marco, e o fluxo de caixa
+     * fechado mudaria sozinho. Evento antigo nao tem o campo, entao continua
+     * gerando as parcelas como antes.
+     */
+    const antecipado = pg.antecipa === true && (forma === 'credito' || forma === 'debito');
+    const valores = antecipado ? [pg.valor] : dividirCentavos(pg.valor, nParcelas);
 
     valores.forEach((valorParcela, i) => {
       const taxa = aplicaPct(valorParcela, taxaPct);
       taxasTotais += taxa;
-      const imediato = (forma === 'dinheiro' || forma === 'pix');
+      // Antecipacao com prazo zero cai no mesmo dia: entra no caixa como
+      // dinheiro, sem ninguem precisar dar baixa. Com prazo de 1 ou 2 dias,
+      // fica em "a receber" ate' a data — e' o que a operadora faz de verdade.
+      const imediato = (forma === 'dinheiro' || forma === 'pix')
+        || (antecipado && (prazoDias || 0) === 0);
       // Fiado: se a venda trouxe uma data para CADA parcela, ela manda — cliente
       // que combina "dia 10 e depois dia 5" nao cabe numa regra fixa. Sem isso,
       // a 1a vence na data combinada e as seguintes caem de mes em mes, no mesmo
@@ -508,11 +558,17 @@ function registrarVenda(e, ev, d) {
       const combinados = Array.isArray(pg.vencimentos) ? pg.vencimentos : null;
       const vencimento = forma === 'fiado'
         ? ((combinados && combinados[i]) || somaMesesData(pg.vencimento || d.data, i))
+        : antecipado ? somaDias(d.data, prazoDias || 0)
         : imediato ? d.data : somaDias(d.data, (prazoDias || 30) * (i + 1));
       const rid = d.id + '#' + idxPg + '#' + (i + 1);
       e.recebiveis[rid] = {
         id: rid, vendaId: d.id, numeroVenda: d.numero, clienteId: d.clienteId || null,
-        tipo: forma, bandeira: pg.bandeira || '', parcela: i + 1, totalParcelas: nParcelas,
+        tipo: forma, bandeira: pg.bandeira || '',
+        // Antecipado e' um recebivel so'. Quantas vezes a CLIENTE dividiu fica
+        // em parcelasCliente: e' o que explica a taxa mais alta na tela.
+        parcela: i + 1, totalParcelas: antecipado ? 1 : nParcelas,
+        parcelasCliente: nParcelas, antecipado,
+        operadoraId: pg.operadoraId || null, operadora: pg.operadora || regra.operadoraNome || '',
         bruto: valorParcela, taxaPct, taxa, liquido: valorParcela - taxa,
         vencimento, data: d.data,
         status: imediato ? 'recebido' : 'aberto',
@@ -726,13 +782,15 @@ function trocarVenda(e, ev, d) {
   // ja' esta' descontada da receita do mes, e o app nao tem conta de saida.
   if (diferenca > 0) {
     const forma = d.formaDiferenca || 'dinheiro';
-    const imediato = (forma === 'dinheiro' || forma === 'pix');
-    const regra = taxaPara(e.config, forma, 1);
-    const taxaPct = imediato ? 0 : regra.taxaPct;
+    const regra = taxaPara(e.config, forma, 1, d.operadoraDiferenca || '');
+    const antecipado = d.antecipaDiferenca === true && (forma === 'credito' || forma === 'debito');
+    const imediato = (forma === 'dinheiro' || forma === 'pix')
+      || (antecipado && (regra.prazoDias || 0) === 0);
+    const taxaPct = (forma === 'dinheiro' || forma === 'pix') ? 0 : regra.taxaPct;
     const taxa = aplicaPct(diferenca, taxaPct);
     const liquido = diferenca - taxa;
     const vencimento = d.vencimentoDiferenca
-      || (imediato ? d.data : somaDias(d.data, regra.prazoDias || 30));
+      || (imediato ? d.data : somaDias(d.data, regra.prazoDias || (antecipado ? 0 : 30)));
     const rid = 'troca-' + d.id;
     e.recebiveis[rid] = {
       id: rid, vendaId: venda.id, numeroVenda: venda.numero, clienteId: venda.clienteId || null,
@@ -745,6 +803,8 @@ function trocarVenda(e, ev, d) {
       pago: imediato ? liquido : 0,
       saldo: imediato ? 0 : liquido,
       pagamentos: imediato ? [{ valor: liquido, data: d.data, forma }] : [],
+      parcelasCliente: 1, antecipado,
+      operadoraId: d.operadoraDiferenca || null, operadora: regra.operadoraNome || '',
       origem: 'troca', descricao: 'diferença de troca',
     };
     troca.taxaDiferenca = taxa;

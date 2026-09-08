@@ -6,6 +6,13 @@ import * as db from '../../core/db.js';
 import { deviceNome, setDeviceNome, deviceId } from '../../core/id.js';
 import { brl, esc, iso, num, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
+
+/** Nome da maquininha de uma faixa de taxa. Faixa sem maquininha e' regra geral. */
+function nomeOperadora(config, operadoraId) {
+  if (!operadoraId) return '';
+  const o = (config.operadoras || []).find((x) => x.id === operadoraId);
+  return o ? o.nome : '(maquininha removida)';
+}
 import { liga, toast, modalFormulario, confirmar, abrirModal, baixarArquivo, lerArquivo, tag , vista } from '../ui.js';
 
 export async function render(raiz) {
@@ -49,21 +56,45 @@ async function html() {
   </div>
 
   <div class="cartao">
+    <div class="cartao-cabecalho"><h3>${icone('raio', 18)} Maquininhas</h3>
+      <button class="btn btn-p" data-acao="nova-operadora">${icone('mais', 14)} Maquininha</button></div>
+    ${!(e.config.operadoras || []).length ? `<div class="aviso aviso-info">${icone('info')}<div>
+      <strong>Nenhuma maquininha cadastrada.</strong>
+      Cadastre cada uma com a sua taxa — Nubank e PagSeguro cobram diferente, e sem isso o app usa a regra
+      geral abaixo para as duas.</div></div>` : `<div class="rolagem-x"><table>
+      <thead><tr><th>Maquininha</th><th>Antecipa?</th><th class="dir">Faixas de taxa</th><th></th></tr></thead>
+      <tbody>${(e.config.operadoras || []).map((o, i) => `<tr>
+        <td>${esc(o.nome)} ${o.ativa === false ? tag('fora de uso', 'erro') : ''}</td>
+        <td>${o.antecipa !== false ? tag('sim — cai de uma vez', 'ok') : 'não — parcela por parcela'}</td>
+        <td class="dir num">${(e.config.taxas || []).filter((t) => t.operadoraId === o.id).length}</td>
+        <td class="dir"><button class="btn btn-p" data-operadora="${i}">Editar</button></td></tr>`).join('')}
+      </tbody></table></div>`}
+    <p class="dica">Antecipação é o padrão hoje: a operadora paga a venda inteira de uma vez, já sem as taxas.
+      Com ela ligada, crédito em 3× deixa de ser três entradas futuras e passa a ser uma entrada agora — e a
+      taxa cobrada é a da faixa de 3×, que é mais alta. Vendas já lançadas não mudam.</p>
+  </div>
+
+  <div class="cartao">
     <div class="cartao-cabecalho"><h3>${icone('dinheiro', 18)} Taxas da maquininha</h3>
       <button class="btn btn-p" data-acao="nova-taxa">${icone('mais', 14)} Faixa</button></div>
     ${(e.config.taxas || []).every((t) => !t.taxaPct) ? `<div class="aviso aviso-alerta">${icone('alerta')}<div>
       <strong>Todas as taxas estão em zero.</strong>
       Enquanto ficarem assim, a margem na DRE aparece maior do que a real. Cada operadora cobra o seu — copie da sua fatura.</div></div>` : ''}
     <div class="rolagem-x"><table>
-      <thead><tr><th>Forma</th><th>Parcelas</th><th class="dir">Taxa</th><th class="dir">Prazo</th><th></th></tr></thead>
+      <thead><tr><th>Maquininha</th><th>Forma</th><th>Parcelas</th><th class="dir">Taxa</th>
+        <th class="dir">Prazo</th><th></th></tr></thead>
       <tbody>${(e.config.taxas || []).map((t, i) => `<tr>
+        <td>${esc(nomeOperadora(e.config, t.operadoraId)) || '<span class="texto-3">regra geral</span>'}</td>
         <td>${t.forma === 'debito' ? 'Débito' : 'Crédito'}</td>
         <td>${t.parcelasDe === t.parcelasAte ? t.parcelasDe + 'x' : `${t.parcelasDe}x a ${t.parcelasAte}x`}</td>
         <td class="dir num">${String(t.taxaPct).replace('.', ',')}%</td>
         <td class="dir num">${t.prazoDias} dias</td>
         <td class="dir"><button class="btn btn-p" data-taxa="${i}">Editar</button></td></tr>`).join('')}
       </tbody></table></div>
-    <p class="dica">Prazo é quando cada parcela cai na conta. Crédito costuma ser 30 dias por parcela.</p>
+    <p class="dica">Prazo é quando o dinheiro cai. Com antecipação, é o prazo do valor inteiro — hoje quase
+      sempre <strong>0 dias</strong>, e aí a venda entra no caixa no mesmo dia, sem precisar dar baixa. Sem
+      antecipação, é o prazo de cada parcela (crédito costuma ser 30 dias por parcela).
+      Faixa em <em>regra geral</em> (sem maquininha) vale para qualquer operadora que não tenha faixa própria.</p>
   </div>
 
   <div class="cartao">
@@ -223,22 +254,70 @@ function ligar(raiz, redesenhar) {
     });
   });
 
+  const editarOperadora = (indice) => {
+    const lista = [...(e.config.operadoras || [])];
+    const o = indice === null
+      ? { id: 'op' + Date.now(), nome: '', antecipa: true, ativa: true }
+      : lista[indice];
+    modalFormulario({
+      titulo: indice === null ? 'Nova maquininha' : 'Editar maquininha',
+      valores: o,
+      campos: [
+        { nome: 'nome', rotulo: 'Nome', obrigatorio: true,
+          dica: 'Como você chama ela no dia a dia: Nubank, PagSeguro, Mercado Pago…' },
+        { nome: 'antecipa', rotulo: 'Antecipa (paga a venda inteira de uma vez)', tipo: 'checkbox',
+          dica: 'É o padrão hoje. Ligado, o crédito em 3× cai numa entrada só, já sem as taxas.' },
+        { nome: 'ativa', rotulo: 'Em uso', tipo: 'checkbox',
+          dica: 'Desmarque a maquininha que você não usa mais: ela sai do PDV e o histórico continua.' },
+      ],
+      botoesExtras: indice === null ? [] : [{
+        texto: 'Remover', classe: 'btn-perigo',
+        acao: async (fechar) => {
+          // Remover a maquininha NAO apaga as faixas dela: elas viram orfas e
+          // continuam visiveis na tabela de taxas, para nao sumir configuracao
+          // sem a pessoa ver. Quem quiser limpa faixa por faixa.
+          lista.splice(indice, 1);
+          await acoes.definirConfig('operadoras', lista);
+          fechar(); toast('Maquininha removida. As faixas de taxa dela continuam na lista.');
+          redesenhar();
+        },
+      }],
+      aoSalvar: async (d, fechar) => {
+        const nova = { ...o, ...d };
+        if (!String(nova.nome || '').trim()) { toast('Dê um nome à maquininha.', 'erro'); return; }
+        if (indice === null) lista.push(nova); else lista[indice] = nova;
+        await acoes.definirConfig('operadoras', lista);
+        fechar(); toast('Maquininha salva.', 'ok'); redesenhar();
+      },
+    });
+  };
+  liga(raiz, 'click', '[data-operadora]', (ev, el) => editarOperadora(Number(el.dataset.operadora)));
+  liga(raiz, 'click', '[data-acao="nova-operadora"]', () => editarOperadora(null));
+
   const editarTaxa = (indice) => {
     const lista = [...(e.config.taxas || [])];
     const t = indice === null
-      ? { id: 't' + Date.now(), forma: 'credito', parcelasDe: 1, parcelasAte: 1, taxaPct: 0, prazoDias: 30 }
+      ? { id: 't' + Date.now(), operadoraId: '', forma: 'credito', parcelasDe: 1, parcelasAte: 1,
+          taxaPct: 0, prazoDias: 0 }
       : lista[indice];
+    const maquinas = e.config.operadoras || [];
     modalFormulario({
       titulo: indice === null ? 'Nova faixa de taxa' : 'Editar taxa',
       valores: t,
       campos: [
+        { nome: 'operadoraId', rotulo: 'Maquininha', tipo: 'select',
+          opcoes: [{ v: '', t: '— regra geral (qualquer maquininha) —' }]
+            .concat(maquinas.map((o) => ({ v: o.id, t: o.nome }))),
+          dica: maquinas.length ? 'Cada maquininha cobra o seu: crie uma faixa para cada uma.'
+            : 'Cadastre as maquininhas acima para dar taxa diferente a cada uma.' },
         { nome: 'forma', rotulo: 'Forma', tipo: 'select', meia: true,
           opcoes: [{ v: 'debito', t: 'Débito' }, { v: 'credito', t: 'Crédito' }] },
         { nome: 'taxaPct', rotulo: 'Taxa (%)', tipo: 'pct', meia: true },
         { nome: 'parcelasDe', rotulo: 'De (parcelas)', tipo: 'inteiro', meia: true },
         { nome: 'parcelasAte', rotulo: 'Até (parcelas)', tipo: 'inteiro', meia: true },
-        { nome: 'prazoDias', rotulo: 'Prazo por parcela (dias)', tipo: 'inteiro',
-          dica: 'Quantos dias até cada parcela cair na conta.' },
+        { nome: 'prazoDias', rotulo: 'Prazo em dias', tipo: 'inteiro',
+          dica: 'Com antecipação: dias até o valor inteiro cair — 0 = no mesmo dia. '
+            + 'Sem antecipação: dias até cada parcela cair (crédito costuma ser 30).' },
       ],
       botoesExtras: indice === null ? [] : [{
         texto: 'Remover', classe: 'btn-perigo',

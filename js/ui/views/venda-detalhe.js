@@ -87,7 +87,8 @@ function html(vendaId) {
         <th class="dir">Taxa</th><th class="dir">Líquido</th><th>Situação</th><th></th></tr></thead>
       <tbody>${recebiveis.map((r) => `<tr>
         <td>${esc(nomesForma[r.tipo] || r.tipo)}${r.totalParcelas > 1 ? ` ${r.parcela}/${r.totalParcelas}` : ''}
-          ${r.bandeira ? `<br><span class="texto-3 pequeno">${esc(r.bandeira)}</span>` : ''}</td>
+          ${r.antecipado ? ' ' + tag((r.parcelasCliente || 1) > 1 ? r.parcelasCliente + '× antecipado' : 'antecipado', 'ok') : ''}
+          ${r.operadora || r.bandeira ? `<br><span class="texto-3 pequeno">${esc([r.operadora, r.bandeira].filter(Boolean).join(' · '))}</span>` : ''}</td>
         <td>${dataBR(r.vencimento)}</td>
         <td class="dir num">${brl(r.bruto)}</td>
         <td class="dir num">${r.taxa ? '− ' + brl(r.taxa) : '—'}</td>
@@ -105,7 +106,10 @@ function html(vendaId) {
           : r.status === 'recebido' ? `<button class="btn btn-p btn-fantasma" data-estornar="${esc(r.id)}">Estornar</button>` : ''}</td>
       </tr>`).join('')}</tbody>
     </table></div>
-    <p class="dica">Taxa de cartão e comissão de canal já entram como dedução da receita na DRE.</p>
+    <p class="dica">Taxa de cartão e comissão de canal já entram como dedução da receita na DRE.
+      ${recebiveis.some((r) => r.antecipado)
+        ? 'Parcela marcada como <strong>antecipada</strong> é uma entrada só: a operadora pagou a venda inteira de uma vez, já sem as taxas, mesmo a cliente tendo dividido.'
+        : ''}</p>
   </div>
 
   ${trocas.length ? `<div class="cartao">
