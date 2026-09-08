@@ -101,7 +101,7 @@ small { font-size: .8125rem; }
 hr { border: 0; border-top: 1px solid var(--borda); margin: 1rem 0; }
 
 .marca { font-family: var(--serif); letter-spacing: .06em; }
-.num { font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mono { font-family: var(--mono); font-size: .85em; }
 
 /* ---------------- estrutura ---------------- */

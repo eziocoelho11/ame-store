@@ -4,7 +4,7 @@ import * as log from '../../core/eventlog.js';
 import { calcularDRE, faturamento12Meses } from '../../domain/dre.js';
 import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxoCaixaMensal,
   resumoMeta } from '../../domain/consultas.js';
-import { brl, esc, pct, num, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, limitesDaCompetencia, dataBR } from '../../core/fmt.js';
+import { brl, brlSimples, esc, pct, num, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, limitesDaCompetencia, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, barra, barraMeta, liga , vista } from '../ui.js';
 import { barras as grafBarras, linhas as grafLinhas } from '../graficos.js';
@@ -107,7 +107,7 @@ function html() {
   </div>` : `
   <div class="cartao">
     <h3>Vendas do mês</h3>
-    ${grafBarras(serieDia, { formato: (v) => brl(v).replace('R$ ', '') })}
+    ${grafBarras(serieDia, { formato: (v) => brlSimples(v) })}
     <div class="legenda"><span>Uma coluna por dia · a coluna cheia é hoje · dia sem coluna é dia sem venda.</span></div>
   </div>
 
@@ -120,7 +120,7 @@ function html() {
       <div class="kpi" style="min-width:150px"><div class="rotulo-kpi">Somando os 6</div>
         <div class="valor-kpi ${caixaAcumulado < 0 ? 'negativo' : ''}">${brl(caixaAcumulado)}</div></div>
     </div>
-    ${grafBarras(seisCaixa, { formato: (v) => brl(v).replace('R$ ', '') })}
+    ${grafBarras(seisCaixa, { formato: (v) => brlSimples(v) })}
     <p class="dica">Só o que entrou e saiu <strong>de verdade</strong>: parcela ainda não recebida não conta aqui.
       Barra para baixo é mês em que saiu mais dinheiro do que entrou; compra grande de mercadoria
       derruba o mês inteiro, mesmo que as peças ainda estejam no estoque para vender.
@@ -211,17 +211,26 @@ function fluxoMensalHTML(fluxo) {
   // "Realizado" conta so' o que ja' entrou e saiu de verdade — o previsto do mes
   // corrente fica de fora, senao o numero promete dinheiro que ainda nao chegou.
   const realizado = meses.filter((m) => !m.futuro).reduce((s, m) => s + m.entradas - m.saidas, 0);
-  const cel = (v, classe) => `<td class="dir num ${classe || ''}">${v ? brl(v).replace('R$ ', '') : '—'}</td>`;
+  const cel = (v, classe) => `<td class="dir num ${classe || ''}">${v ? brlSimples(v) : '—'}</td>`;
+  // O acumulado sempre mostra numero, inclusive zero: "—" na linha do
+  // acumulado leria como "nao sei", quando zero ali quer dizer empate.
+  const celAcumulada = (v) => `<td class="dir num negrito ${v < 0 ? 'negativo' : 'positivo'}">${brlSimples(v)}</td>`;
+  const fim = meses[meses.length - 1];
+  const operacionalAno = fim ? fim.acumuladoOperacional : 0;
+  // Acumulado so' do que ja' aconteceu: e' o "estou no lucro AGORA".
+  const ultimoFechado = [...meses].reverse().find((m) => !m.futuro);
+  const acumuladoHoje = ultimoFechado ? ultimoFechado.acumuladoOperacional : 0;
 
   return `
   <div class="cartao">
     <div class="cartao-cabecalho">
       <div class="crescer"><h3>Fluxo de caixa mês a mês</h3>
-        <div class="texto-2 pequeno">janeiro a dezembro de ${esc(fluxo.meses[0].comp.slice(0, 4))} · trecho tracejado é previsão</div></div>
+        <div class="texto-2 pequeno">janeiro a dezembro de ${esc(fluxo.meses[0].comp.slice(0, 4))}
+          · valores em R$ · trecho tracejado é previsão</div></div>
       <button class="btn btn-p" data-ir="/financeiro">Detalhar</button>
     </div>
 
-    ${grafLinhas(series, { solidoAte, formato: (v) => brl(v).replace('R$ ', '') })}
+    ${grafLinhas(series, { solidoAte, formato: (v) => brlSimples(v) })}
 
     <div class="rolagem-x mt"><table>
       <thead><tr><th></th>
@@ -231,8 +240,16 @@ function fluxoMensalHTML(fluxo) {
         <tr><td class="texto-2">Entra</td>${meses.map((m) => cel(m.entradasTotal, 'positivo')).join('')}</tr>
         <tr><td class="texto-2">Sai</td>${meses.map((m) => cel(m.saidasTotal, 'negativo')).join('')}</tr>
         <tr><td class="negrito">Saldo</td>${meses.map((m) => cel(m.saldo, 'negrito' + (m.saldo < 0 ? ' negativo' : ''))).join('')}</tr>
+        <tr><td class="negrito">Acumulado</td>${meses.map((m) => celAcumulada(m.acumuladoOperacional)).join('')}</tr>
       </tbody>
     </table></div>
+
+    <div class="kpi ${acumuladoHoje < 0 ? '' : 'destaque'} mt">
+      <div class="rotulo-kpi">Resultado da operação no ano, até agora</div>
+      <div class="valor-kpi ${acumuladoHoje < 0 ? 'negativo' : ''}">${brl(acumuladoHoje)}</div>
+      <div class="nota-kpi">${acumuladoHoje < 0 ? 'a operação está no prejuízo no ano' : 'a operação está no lucro no ano'}
+        · fechando o ano como está previsto: <strong class="num">${brl(operacionalAno)}</strong></div>
+    </div>
 
     <div class="flex entre pequeno mt quebra gap-g">
       <span class="texto-2">Realizado até hoje
@@ -244,6 +261,13 @@ function fluxoMensalHTML(fluxo) {
         <strong class="num">${brl(soma(futuros, 'entradasTotal'))}</strong> · sai
         <strong class="num">${brl(soma(futuros, 'saidasTotal'))}</strong></span>
     </div>
+
+    <p class="dica"><strong>Acumulado</strong> é o saldo somado mês a mês, começando <strong>do zero em
+      janeiro</strong>: é a linha que diz se o ano está no azul ou no vermelho, o que o saldo de um mês sozinho
+      não diz — um mês bom depois de três ruins parece bom e não é. Ele mede a <strong>operação do ano</strong>,
+      não o dinheiro em conta: o ano começa zerado, sem carregar saldo de ano anterior.
+      ${fluxo.herdadoTotal ? `O saldo de ${brl(fluxo.herdadoTotal)} que veio da planilha do ano anterior fica
+        fora desta linha de propósito — ele entrou no caixa, mas não é resultado deste ano.` : ''}</p>
 
     <p class="dica"><strong>Mês que já chegou mostra só o que entrou e saiu de verdade.</strong> Parcela ainda não
       recebida não compõe o resultado do mês — ela aparece em "ainda este mês", acima, e no quadro de previsão do

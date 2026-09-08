@@ -2,7 +2,7 @@
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
 import { calcularDRE } from '../../domain/dre.js';
-import { brl, esc, pct, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, num } from '../../core/fmt.js';
+import { brl, brlSimples, esc, pct, iso, competencia, competenciaBR, competenciaCurta, ultimasCompetencias, num } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, paraCSV, csvMoeda, baixarArquivo, modalFormulario , vista } from '../ui.js';
 import { barras as grafBarras } from '../graficos.js';
@@ -47,7 +47,7 @@ function html() {
 
 function linhaDRE(rotulo, valor, d, { classe = '', recuo = false, sinal = null } = {}) {
   const p = d.receitaBruta > 0 ? (valor / d.receitaBruta) * 100 : null;
-  const texto = sinal === '-' ? '− ' + brl(Math.abs(valor)) : brl(valor);
+  const texto = sinal === '-' ? '− ' + brlSimples(Math.abs(valor)) : brlSimples(valor);
   return `<tr class="${classe}">
     <td class="${recuo ? 'recuo' : ''} ${classe ? '' : 'rubrica'}">${rotulo}</td>
     <td class="dir num">${texto}</td>
@@ -90,6 +90,7 @@ function mesHTML(e, d) {
       </tbody>
     </table>
     <p class="dica mt">
+      <strong>Valores em R$.</strong>
       Regime de competência: a venda entra no mês em que aconteceu, mesmo que o dinheiro do cartão caia depois
       ou que o fiado tenha sido parcelado em 6×. Parcelar não muda o resultado do mês — muda quando o dinheiro
       entra. Para isso, veja o <a href="#/financeiro">Financeiro</a>.
@@ -163,7 +164,7 @@ function anoHTML(e) {
   <div class="cartao">
     <h3>Resultado mês a mês</h3>
     ${grafBarras(serie.map((d) => ({ rotulo: competenciaCurta(d.competencia), valor: d.resultado })),
-      { formato: (v) => brl(v).replace('R$ ', '') })}
+      { formato: (v) => brlSimples(v) })}
   </div>
 
   <div class="cartao">

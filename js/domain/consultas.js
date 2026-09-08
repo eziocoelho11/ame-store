@@ -255,6 +255,10 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
     meses.set(comp, {
       comp, futuro: comp > compAtual, corrente: comp === compAtual,
       entradas: 0, saidas: 0, entradasPrevistas: 0, saidasPrevistas: 0,
+      // Saldo que veio do ano anterior: entrou como entrada de caixa, mas nao
+      // e' resultado da operacao deste ano. Fica separado para o acumulado
+      // poder responder as duas perguntas sem misturar as duas coisas.
+      herdadas: 0,
     });
   }
   // Fora da janela nao entra: empurrar o historico todo para a primeira coluna
@@ -268,9 +272,12 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
 
   for (const r of Object.values(estado.recebiveis)) {
     if (r.status === 'cancelado') continue;
+    const herdado = String(r.origem || '').startsWith('planilha-saldo-inicial');
     for (const pg of (r.pagamentos || [])) {
       const m = balde(pg.data);
-      if (m) m.entradas += pg.valor;
+      if (!m) continue;
+      m.entradas += pg.valor;
+      if (herdado) m.herdadas += pg.valor;
     }
     const falta = saldoDe(r);
     if (falta > 0) {
@@ -309,10 +316,26 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
     m.entradasTotal = m.futuro ? m.entradas + m.entradasPrevistas : m.entradas;
     m.saidasTotal = m.futuro ? m.saidas + m.saidasPrevistas : m.saidas;
     m.saldo = m.entradasTotal - m.saidasTotal;
+    // Resultado so' da OPERACAO: tira o saldo herdado do ano anterior. E' o
+    // numero que responde "a loja deu lucro no ano?" — com o herdado dentro,
+    // um caixa inicial gordo esconderia um ano inteiro no vermelho.
+    m.saldoOperacional = m.saldo - m.herdadas;
     m.realizado = m.entradas - m.saidas;
     m.temPrevisto = (m.entradasPrevistas + m.saidasPrevistas) > 0;
   }
-  return { meses: lista, de: primeiro, ate: ultimo, compAtual };
+  // Acumulado corrido: cada mes carrega o resultado de todos os anteriores da
+  // janela. E' o que mostra se a operacao esta' no lucro ou no prejuizo no ano,
+  // pergunta que o saldo de um mes sozinho nao responde.
+  let corridoSaldo = 0;
+  let corridoOperacional = 0;
+  for (const m of lista) {
+    corridoSaldo += m.saldo;
+    corridoOperacional += m.saldoOperacional;
+    m.acumulado = corridoSaldo;
+    m.acumuladoOperacional = corridoOperacional;
+  }
+  const herdadoTotal = lista.reduce((soma, m) => soma + m.herdadas, 0);
+  return { meses: lista, de: primeiro, ate: ultimo, compAtual, herdadoTotal };
 }
 
 // ---------------- metas ----------------

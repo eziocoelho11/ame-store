@@ -3,7 +3,7 @@
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
 import { recebiveis, aReceber, aReceberPorMes, fluxoCaixa, rotuloRecebivel, saldoDe } from '../../domain/consultas.js';
-import { brl, esc, iso, dataBR, dataCurta, competencia, limitesDaCompetencia, competenciaBR, normaliza } from '../../core/fmt.js';
+import { brl, brlSimples, esc, iso, dataBR, dataCurta, competencia, limitesDaCompetencia, competenciaBR, normaliza } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, tag, vazio, paraCSV, csvMoeda, baixarArquivo, confirmar, debounce, vista } from '../ui.js';
 import { barras as grafBarras } from '../graficos.js';
@@ -180,11 +180,11 @@ function aReceberHTML(e, hoje) {
       <thead><tr>
         <th style="width:34px"></th>
         <th>Origem</th><th>Vencimento</th>
-        <th class="dir">Bruto</th><th class="dir">Taxa</th><th class="dir">Líquido</th><th></th>
+        <th class="dir">Bruto (R$)</th><th class="dir">Taxa (R$)</th><th class="dir">Líquido (R$)</th><th></th>
       </tr></thead>
       <tbody>${g.itens.map((r) => linhaAReceber(e, r, hoje)).join('')}</tbody>
       <tfoot><tr><td colspan="5">Total do mês</td>
-        <td class="dir num">${brl(g.total)}</td><td></td></tr></tfoot>
+        <td class="dir num">${brlSimples(g.total)}</td><td></td></tr></tfoot>
     </table></div>
   </div>`).join('')
     : vazio('dinheiro',
@@ -204,9 +204,9 @@ function linhaAReceber(e, r, hoje) {
       ${cliente ? `<br><span class="texto-3 pequeno">${esc(cliente)}</span>` : ''}</td>
     <td>${dataBR(r.vencimento)} ${vencida ? tag('vencida', 'erro') : ''}
       ${r.status === 'parcial' ? tag('parcial', 'alerta') : ''}</td>
-    <td class="dir num">${brl(r.bruto)}</td>
-    <td class="dir num">${r.taxa ? '− ' + brl(r.taxa) : '—'}</td>
-    <td class="dir num negrito">${brl(saldoDe(r))}
+    <td class="dir num">${brlSimples(r.bruto)}</td>
+    <td class="dir num">${r.taxa ? '− ' + brlSimples(r.taxa) : '—'}</td>
+    <td class="dir num negrito">${brlSimples(saldoDe(r))}
       ${r.status === 'parcial'
         ? `<br><span class="pequeno texto-3">de ${brl(r.liquido)} · pagos ${brl(r.pago)}</span>` : ''}</td>
     <td class="dir">${acoesParcelaHTML(r)}</td>
@@ -243,7 +243,7 @@ function recebidosHTML(e, totalRecebido) {
   ${lista.length ? `<div class="cartao"><div class="rolagem-x"><table>
     <thead><tr>
       <th>Origem</th><th>Recebido em</th>
-      <th class="dir">Bruto</th><th class="dir">Taxa</th><th class="dir">Líquido</th><th></th>
+      <th class="dir">Bruto (R$)</th><th class="dir">Taxa (R$)</th><th class="dir">Líquido (R$)</th><th></th>
     </tr></thead>
     <tbody>${lista.map((r) => {
       const cliente = r.clienteId && e.clientes[r.clienteId] ? e.clientes[r.clienteId].nome : '';
@@ -253,14 +253,14 @@ function recebidosHTML(e, totalRecebido) {
           : esc(rotuloRecebivel(r))}
           ${cliente ? `<br><span class="texto-3 pequeno">${esc(cliente)}</span>` : ''}</td>
         <td>${dataBR(r.recebidoEm)}</td>
-        <td class="dir num">${brl(r.bruto)}</td>
-        <td class="dir num">${r.taxa ? '− ' + brl(r.taxa) : '—'}</td>
-        <td class="dir num negrito">${brl(r.liquido)}</td>
+        <td class="dir num">${brlSimples(r.bruto)}</td>
+        <td class="dir num">${r.taxa ? '− ' + brlSimples(r.taxa) : '—'}</td>
+        <td class="dir num negrito">${brlSimples(r.liquido)}</td>
         <td class="dir"><button class="btn btn-p btn-fantasma" data-estornar="${esc(r.id)}">Estornar</button></td>
       </tr>`;
     }).join('')}</tbody>
     <tfoot><tr><td colspan="4">Total</td>
-      <td class="dir num">${brl(lista.reduce((s, r) => s + r.liquido, 0))}</td><td></td></tr></tfoot>
+      <td class="dir num">${brlSimples(lista.reduce((s, r) => s + r.liquido, 0))}</td><td></td></tr></tfoot>
   </table></div></div>`
     : vazio('dinheiro', 'Nada recebido no período', 'Ajuste as datas acima.')}`;
 }
@@ -275,15 +275,15 @@ function previsaoHTML(e, hoje) {
   return `<div class="cartao">
     <h3>Previsão de entrada por mês</h3>
     <div class="rolagem-x"><table>
-      <thead><tr><th>Mês</th><th class="dir">Cartão</th><th class="dir">Fiado</th>
-        <th class="dir">Parcelas</th><th class="dir">Total</th></tr></thead>
+      <thead><tr><th>Mês</th><th class="dir">Cartão (R$)</th><th class="dir">Fiado (R$)</th>
+        <th class="dir">Parcelas</th><th class="dir">Total (R$)</th></tr></thead>
       <tbody>${meses.map((m) => `<tr>
         <td>${esc(competenciaBR(m.comp))}
           ${m.vencido ? tag('vencido ' + brl(m.vencido), 'erro') : ''}</td>
-        <td class="dir num">${m.cartao ? brl(m.cartao) : '—'}</td>
-        <td class="dir num">${m.fiado ? brl(m.fiado) : '—'}</td>
+        <td class="dir num">${m.cartao ? brlSimples(m.cartao) : '—'}</td>
+        <td class="dir num">${m.fiado ? brlSimples(m.fiado) : '—'}</td>
         <td class="dir num texto-3">${m.n}</td>
-        <td class="dir num negrito">${brl(m.total)}</td></tr>`).join('')}</tbody>
+        <td class="dir num negrito">${brlSimples(m.total)}</td></tr>`).join('')}</tbody>
     </table></div>
     <p class="dica">Resumo de tudo que está em aberto, sem filtro. Valores líquidos, já sem a taxa da
       maquininha. Parcela vencida aparece no mês atual — é dinheiro que já deveria ter entrado. Isto é
@@ -304,25 +304,25 @@ function fluxoHTML(fluxo) {
   <div class="cartao">
     <h3>Saldo por dia</h3>
     ${grafBarras(fluxo.dias.map((d) => ({ rotulo: dataCurta(d.data), valor: d.saldo })),
-      { formato: (v) => brl(v).replace('R$ ', '') })}
+      { formato: (v) => brlSimples(v) })}
     <div class="legenda"><span>Barra para baixo = dia em que saiu mais dinheiro do que entrou.</span></div>
   </div>
 
   <div class="cartao">
     <div class="rolagem-x"><table>
-      <thead><tr><th>Dia</th><th class="dir">Entradas</th><th class="dir">Saídas</th>
-        <th class="dir">Saldo</th><th class="dir">Acumulado</th></tr></thead>
+      <thead><tr><th>Dia</th><th class="dir">Entradas (R$)</th><th class="dir">Saídas (R$)</th>
+        <th class="dir">Saldo (R$)</th><th class="dir">Acumulado (R$)</th></tr></thead>
       <tbody>${fluxo.dias.map((d) => `<tr>
         <td>${dataBR(d.data)}</td>
-        <td class="dir num positivo">${d.entradas ? brl(d.entradas) : '—'}</td>
-        <td class="dir num negativo">${d.saidas ? brl(d.saidas) : '—'}</td>
-        <td class="dir num ${d.saldo < 0 ? 'negativo' : ''}">${brl(d.saldo)}</td>
-        <td class="dir num negrito ${d.acumulado < 0 ? 'negativo' : ''}">${brl(d.acumulado)}</td></tr>`).join('')}
+        <td class="dir num positivo">${d.entradas ? brlSimples(d.entradas) : '—'}</td>
+        <td class="dir num negativo">${d.saidas ? brlSimples(d.saidas) : '—'}</td>
+        <td class="dir num ${d.saldo < 0 ? 'negativo' : ''}">${brlSimples(d.saldo)}</td>
+        <td class="dir num negrito ${d.acumulado < 0 ? 'negativo' : ''}">${brlSimples(d.acumulado)}</td></tr>`).join('')}
       </tbody>
       <tfoot><tr><td>Total</td>
-        <td class="dir num">${brl(fluxo.entradas)}</td>
-        <td class="dir num">${brl(fluxo.saidas)}</td>
-        <td class="dir num">${brl(fluxo.saldo)}</td><td></td></tr></tfoot>
+        <td class="dir num">${brlSimples(fluxo.entradas)}</td>
+        <td class="dir num">${brlSimples(fluxo.saidas)}</td>
+        <td class="dir num">${brlSimples(fluxo.saldo)}</td><td></td></tr></tfoot>
     </table></div>
     <p class="dica">Compra de mercadoria entra aqui como saída no dia da entrada no estoque — na DRE ela só aparece como CMV quando a peça é vendida. É a mesma compra vista de dois jeitos, e os dois estão certos.</p>
   </div>`
@@ -421,15 +421,15 @@ function devedoresHTML(e, hoje) {
 
     <div class="rolagem-x"><table>
       <thead><tr><th style="width:34px"></th><th>Origem</th><th>Vencimento</th>
-        <th class="dir">Valor</th><th class="dir">Pago</th><th class="dir">Falta</th><th></th></tr></thead>
+        <th class="dir">Valor (R$)</th><th class="dir">Pago (R$)</th><th class="dir">Falta (R$)</th><th></th></tr></thead>
       <tbody>${g.parcelas.map((r) => `<tr>
         <td><label class="caixa-toque"><input type="checkbox" data-sel="${esc(r.id)}"${selecionados.has(r.id) ? ' checked' : ''}></label></td>
         <td>${r.vendaId ? `<a href="#/venda/${esc(r.vendaId)}">${esc(rotuloRecebivel(r))}</a>` : esc(rotuloRecebivel(r))}</td>
         <td>${dataBR(r.vencimento)} ${r.vencimento < hoje ? tag('vencida', 'erro') : ''}
           ${r.status === 'parcial' ? tag('parcial', 'alerta') : ''}</td>
-        <td class="dir num">${brl(r.liquido)}</td>
-        <td class="dir num">${r.pago ? brl(r.pago) : '—'}</td>
-        <td class="dir num negrito">${brl(saldoDe(r))}</td>
+        <td class="dir num">${brlSimples(r.liquido)}</td>
+        <td class="dir num">${r.pago ? brlSimples(r.pago) : '—'}</td>
+        <td class="dir num negrito">${brlSimples(saldoDe(r))}</td>
         <td class="dir">${acoesParcelaHTML(r)}</td>
       </tr>`).join('')}</tbody>
     </table></div>

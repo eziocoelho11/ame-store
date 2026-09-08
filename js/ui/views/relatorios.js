@@ -1,7 +1,7 @@
 // relatorios.js — as perguntas que decidem a proxima compra.
 import * as log from '../../core/eventlog.js';
 import { desempenhoPorItem, curvaABC, giroEstoque, receitaPorCategoria, padraoDeVenda, valorEstoque } from '../../domain/consultas.js';
-import { brl, esc, pct, num, iso, competencia, limitesDaCompetencia, DIAS_SEMANA } from '../../core/fmt.js';
+import { brl, brlSimples, esc, pct, num, iso, competencia, limitesDaCompetencia, DIAS_SEMANA } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, vazio, tag, paraCSV, csvMoeda, baixarArquivo , vista } from '../ui.js';
 import { ranking, rosca, barras as grafBarras } from '../graficos.js';
@@ -65,12 +65,12 @@ function abaVendidos(itens) {
   <div class="cartao">
     <h3>Detalhe</h3>
     <div class="rolagem-x"><table>
-      <thead><tr><th>Peça</th><th class="dir">Qtd</th><th class="dir">Receita</th>
-        <th class="dir">Custo</th><th class="dir">Margem</th><th class="dir">%</th></tr></thead>
+      <thead><tr><th>Peça</th><th class="dir">Qtd</th><th class="dir">Receita (R$)</th>
+        <th class="dir">Custo (R$)</th><th class="dir">Margem (R$)</th><th class="dir">%</th></tr></thead>
       <tbody>${itens.map((i) => `<tr>
         <td>${esc(i.rotulo)}</td><td class="dir num">${i.qtd}</td>
-        <td class="dir num">${brl(i.receita)}</td><td class="dir num texto-3">${brl(i.custo)}</td>
-        <td class="dir num">${brl(i.margem)}</td><td class="dir pct">${pct(i.margemPct)}</td></tr>`).join('')}
+        <td class="dir num">${brlSimples(i.receita)}</td><td class="dir num texto-3">${brlSimples(i.custo)}</td>
+        <td class="dir num">${brlSimples(i.margem)}</td><td class="dir pct">${pct(i.margemPct)}</td></tr>`).join('')}
       </tbody></table></div>
   </div>`;
 }
@@ -88,12 +88,12 @@ function abaABC(e) {
   <div class="cartao">
     <p class="dica">Classe A é o que sustenta a loja: reponha sempre. Classe C ocupa arara e dinheiro parado — bom candidato a promoção e a não recomprar.</p>
     <div class="rolagem-x"><table>
-      <thead><tr><th>Peça</th><th>Classe</th><th class="dir">Receita</th>
+      <thead><tr><th>Peça</th><th>Classe</th><th class="dir">Receita (R$)</th>
         <th class="dir">% do total</th><th class="dir">Acumulado</th></tr></thead>
       <tbody>${abc.map((i) => `<tr>
         <td>${esc(i.rotulo)}</td>
         <td>${tag(i.classe, i.classe === 'A' ? 'ok' : i.classe === 'B' ? 'info' : 'alerta')}</td>
-        <td class="dir num">${brl(i.receita)}</td>
+        <td class="dir num">${brlSimples(i.receita)}</td>
         <td class="dir pct">${pct(i.pctReceita)}</td>
         <td class="dir pct">${pct(i.pctAcum)}</td></tr>`).join('')}
       </tbody></table></div>
@@ -115,7 +115,7 @@ function abaGiro(e) {
     <p class="dica">Cobertura responde: no ritmo atual, em quantos dias essa peça acaba. Abaixo de 15 dias, é hora de repor.</p>
     <div class="rolagem-x"><table>
       <thead><tr><th>Peça</th><th class="dir">Saldo</th><th class="dir">Vendidas</th>
-        <th class="dir">Cobertura</th><th class="dir">Parado (custo)</th></tr></thead>
+        <th class="dir">Cobertura</th><th class="dir">Parado (R$ de custo)</th></tr></thead>
       <tbody>${giro.map((g) => `<tr>
         <td>${esc(g.rotulo)}</td>
         <td class="dir num">${g.saldo}</td>
@@ -123,7 +123,7 @@ function abaGiro(e) {
         <td class="dir">${g.coberturaDias === null ? tag('não vendeu', 'alerta')
           : g.coberturaDias === 0 ? '—'
           : `<span class="${g.coberturaDias <= 15 ? 'negativo' : ''}">${g.coberturaDias} dias</span>`}</td>
-        <td class="dir num texto-3">${brl(g.saldo * g.custoMedio)}</td></tr>`).join('')}
+        <td class="dir num texto-3">${brlSimples(g.saldo * g.custoMedio)}</td></tr>`).join('')}
       </tbody></table></div>
   </div>`;
 }
@@ -139,12 +139,12 @@ function abaCategoria(e) {
   </div>
   <div class="cartao">
     <div class="rolagem-x"><table>
-      <thead><tr><th>Categoria</th><th class="dir">Peças</th><th class="dir">Receita</th>
-        <th class="dir">Custo</th><th class="dir">Margem</th><th class="dir">%</th></tr></thead>
+      <thead><tr><th>Categoria</th><th class="dir">Peças</th><th class="dir">Receita (R$)</th>
+        <th class="dir">Custo (R$)</th><th class="dir">Margem (R$)</th><th class="dir">%</th></tr></thead>
       <tbody>${cats.map((c) => `<tr>
         <td>${esc(c.categoria)}</td><td class="dir num">${c.qtd}</td>
-        <td class="dir num">${brl(c.receita)}</td><td class="dir num texto-3">${brl(c.custo)}</td>
-        <td class="dir num">${brl(c.margem)}</td>
+        <td class="dir num">${brlSimples(c.receita)}</td><td class="dir num texto-3">${brlSimples(c.custo)}</td>
+        <td class="dir num">${brlSimples(c.margem)}</td>
         <td class="dir pct">${pct(c.receita > 0 ? (c.margem / c.receita) * 100 : null)}</td></tr>`).join('')}
       </tbody></table></div>
   </div>`;
@@ -155,10 +155,10 @@ function abaQuando(e) {
   return `
   <div class="cartao"><h3>Por dia da semana</h3>
     ${grafBarras(p.semana.map((s, i) => ({ rotulo: DIAS_SEMANA[i].slice(0, 3), valor: s.receita })),
-      { formato: (v) => brl(v).replace('R$ ', '') })}</div>
+      { formato: (v) => brlSimples(v) })}</div>
   <div class="cartao"><h3>Por hora do dia</h3>
     ${grafBarras(p.horas.map((h, i) => ({ rotulo: String(i).padStart(2, '0'), valor: h.receita }))
-      .filter((h, i) => i >= 7 && i <= 22), { formato: (v) => brl(v).replace('R$ ', '') })}
+      .filter((h, i) => i >= 7 && i <= 22), { formato: (v) => brlSimples(v) })}
     <p class="dica">Serve para decidir horário de funcionamento e quando publicar no Instagram.</p></div>`;
 }
 

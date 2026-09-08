@@ -303,10 +303,37 @@ fica no alto da tela. O resultado por competência, que responde *a loja deu
 lucro?*, está na DRE. Os dois costumam ser diferentes, e os dois estão certos.
 
 ### Fluxo de caixa mês a mês (na tela inicial)
-O quadro mostra o **ano corrente inteiro, de janeiro a dezembro**, em três linhas — **entradas**, **saídas** e **saldo**. O trecho
-cheio é o que já aconteceu; do mês atual para a frente a linha vira
-**tracejada**, que é a previsão. Na tabela abaixo do gráfico, os meses de
-previsão vêm marcados com `*`.
+O quadro mostra o **ano corrente inteiro, de janeiro a dezembro**. O gráfico tem
+três linhas — **entradas**, **saídas** e **saldo**. O trecho cheio é o que já
+aconteceu; do mês atual para a frente a linha vira **tracejada**, que é a
+previsão. Na tabela abaixo do gráfico, os meses de previsão vêm marcados com `*`.
+
+A tabela tem uma quarta linha, o **Acumulado**: o saldo somado mês a mês,
+começando **do zero em janeiro**. É a linha que responde *no ano, a operação está
+no lucro ou no prejuízo?* — pergunta que o saldo de um mês sozinho não responde,
+porque um mês bom depois de três ruins parece bom e não é. O acumulado de
+dezembro é o resultado do ano.
+
+Duas coisas sobre ele:
+
+- Mede a **operação do ano**, não o dinheiro em conta. O ano começa zerado: nada
+  de saldo de ano anterior é carregado para dentro da linha.
+- Nos meses marcados com `*` ele carrega a previsão, do mesmo jeito que a linha
+  de saldo acima.
+
+Logo abaixo da tabela, a caixinha **Resultado da operação no ano, até agora**
+mostra o acumulado só dos meses que já fecharam — o número sem previsão nenhuma —
+e, ao lado, como o ano fecha se a previsão se confirmar.
+
+### Como os valores aparecem nas tabelas
+Nas tabelas, os números vêm **sem o "R$"**: a moeda é dita uma vez, no cabeçalho
+da coluna (`Bruto (R$)`) ou no alto do quadro. Repetir o símbolo em toda linha
+não informa nada e cansa a vista. Onde o número aparece sozinho — nas caixinhas
+de destaque, nos avisos — o `R$` continua, porque ali ele ajuda a ler.
+
+Número negativo nunca quebra em duas linhas. Parece detalhe, mas em coluna
+estreita o navegador separava o sinal de menos do número, e um `- 8.027,94`
+partido no meio é fácil de ler como se fosse positivo.
 
 O que entra na previsão é só o que **já está contratado**: parcela de cartão e
 de fiado com vencimento marcado, e despesa lançada e ainda não paga. Nada é
