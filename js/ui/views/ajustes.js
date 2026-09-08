@@ -6,12 +6,39 @@ import * as db from '../../core/db.js';
 import { deviceNome, setDeviceNome, deviceId } from '../../core/id.js';
 import { brl, esc, iso, num, dataBR } from '../../core/fmt.js';
 import { icone } from '../icones.js';
+import { taxaPara } from '../../core/state.js';
 
 /** Nome da maquininha de uma faixa de taxa. Faixa sem maquininha e' regra geral. */
 function nomeOperadora(config, operadoraId) {
   if (!operadoraId) return '';
   const o = (config.operadoras || []).find((x) => x.id === operadoraId);
   return o ? o.nome : '(maquininha removida)';
+}
+
+/**
+ * As tres taxas que toda maquininha cobra: debito, credito 1x e credito
+ * parcelado. Sao editadas DENTRO da maquininha, e nao numa tabela separada,
+ * porque e' assim que a fatura da operadora chega e e' assim que a dona pensa —
+ * "a taxa da Nubank e' tanto, a da PagSeguro e' tanto".
+ *
+ * Faixa extra (por exemplo 7x a 12x com taxa propria) continua existindo na
+ * tabela avancada e NAO e' tocada por aqui: o campo "parcelado" edita so' a
+ * faixa que comeca em 2x, preservando ate' onde ela ia.
+ */
+function taxasDaOperadora(config, operadoraId) {
+  const lista = (config.taxas || []).filter((t) => t.operadoraId === operadoraId);
+  const debito = lista.find((t) => t.forma === 'debito' && t.parcelasDe <= 1 && t.parcelasAte >= 1);
+  const credito1 = lista.find((t) => t.forma === 'credito' && t.parcelasDe <= 1 && t.parcelasAte >= 1);
+  const parcelado = lista.find((t) => t.forma === 'credito' && t.parcelasDe === 2);
+  const extras = lista.filter((t) => t !== debito && t !== credito1 && t !== parcelado);
+  return { debito, credito1, parcelado, extras };
+}
+
+/** Prazo que a maquininha ja' usa nas faixas dela, para nao perguntar duas vezes. */
+function prazoDaOperadora(config, operadoraId) {
+  const { debito, credito1, parcelado } = taxasDaOperadora(config, operadoraId);
+  const alguma = credito1 || parcelado || debito;
+  return alguma && alguma.prazoDias !== undefined ? alguma.prazoDias : 0;
 }
 import { liga, toast, modalFormulario, confirmar, abrirModal, baixarArquivo, lerArquivo, tag , vista } from '../ui.js';
 
@@ -60,23 +87,44 @@ async function html() {
       <button class="btn btn-p" data-acao="nova-operadora">${icone('mais', 14)} Maquininha</button></div>
     ${!(e.config.operadoras || []).length ? `<div class="aviso aviso-info">${icone('info')}<div>
       <strong>Nenhuma maquininha cadastrada.</strong>
-      Cadastre cada uma com a sua taxa — Nubank e PagSeguro cobram diferente, e sem isso o app usa a regra
-      geral abaixo para as duas.</div></div>` : `<div class="rolagem-x"><table>
-      <thead><tr><th>Maquininha</th><th>Antecipa?</th><th class="dir">Faixas de taxa</th><th></th></tr></thead>
-      <tbody>${(e.config.operadoras || []).map((o, i) => `<tr>
-        <td>${esc(o.nome)} ${o.ativa === false ? tag('fora de uso', 'erro') : ''}</td>
+      Cadastre cada uma com as taxas dela — Nubank e PagSeguro cobram diferente, e cada uma tem taxa
+      própria para débito, crédito 1× e crédito parcelado.</div></div>` : `<div class="rolagem-x"><table>
+      <thead><tr><th>Maquininha</th><th class="dir">Débito</th><th class="dir">Crédito 1×</th>
+        <th class="dir">Parcelado</th><th class="dir">Prazo</th><th>Antecipa?</th><th></th></tr></thead>
+      <tbody>${(e.config.operadoras || []).map((o, i) => {
+        const t = taxasDaOperadora(e.config, o.id);
+        const celula = (faixa, forma, parcelas) => {
+          if (faixa) return `<span class="num">${String(faixa.taxaPct).replace('.', ',')}%</span>`;
+          const herdada = taxaPara(e.config, forma, parcelas, o.id);
+          return `<span class="texto-3 pequeno">${String(herdada.taxaPct).replace('.', ',')}%<br>regra geral</span>`;
+        };
+        const prazo = t.credito1 || t.parcelado || t.debito
+          ? prazoDaOperadora(e.config, o.id)
+          : taxaPara(e.config, 'credito', 1, o.id).prazoDias;
+        return `<tr>
+        <td>${esc(o.nome)} ${o.ativa === false ? tag('fora de uso', 'erro') : ''}
+          ${t.extras.length ? `<br><span class="texto-3 pequeno">+ ${t.extras.length} faixa(s) especial(is)</span>` : ''}</td>
+        <td class="dir">${celula(t.debito, 'debito', 1)}</td>
+        <td class="dir">${celula(t.credito1, 'credito', 1)}</td>
+        <td class="dir">${celula(t.parcelado, 'credito', 3)}${t.parcelado ? `<br><span class="texto-3 pequeno">2× a ${t.parcelado.parcelasAte}×</span>` : ''}</td>
+        <td class="dir num">${prazo} d</td>
         <td>${o.antecipa !== false ? tag('sim — cai de uma vez', 'ok') : 'não — parcela por parcela'}</td>
-        <td class="dir num">${(e.config.taxas || []).filter((t) => t.operadoraId === o.id).length}</td>
-        <td class="dir"><button class="btn btn-p" data-operadora="${i}">Editar</button></td></tr>`).join('')}
+        <td class="dir"><button class="btn btn-p" data-operadora="${i}">Editar</button></td></tr>`;
+      }).join('')}
       </tbody></table></div>`}
+    ${(e.config.operadoras || []).some((o) => !taxasDaOperadora(e.config, o.id).credito1)
+      ? `<p class="dica"><strong>Maquininha marcada como "regra geral"</strong> ainda não tem taxa própria:
+          ela está usando a faixa geral, igual a todas as outras. Toque em Editar e ponha as taxas dela.</p>` : ''}
     <p class="dica">Antecipação é o padrão hoje: a operadora paga a venda inteira de uma vez, já sem as taxas.
       Com ela ligada, crédito em 3× deixa de ser três entradas futuras e passa a ser uma entrada agora — e a
       taxa cobrada é a da faixa de 3×, que é mais alta. Vendas já lançadas não mudam.</p>
   </div>
 
   <div class="cartao">
-    <div class="cartao-cabecalho"><h3>${icone('dinheiro', 18)} Taxas da maquininha</h3>
+    <div class="cartao-cabecalho"><h3>${icone('dinheiro', 18)} Faixas de taxa (avançado)</h3>
       <button class="btn btn-p" data-acao="nova-taxa">${icone('mais', 14)} Faixa</button></div>
+    <p class="dica">O normal é configurar as taxas dentro de cada maquininha, acima. Esta tabela é para o
+      caso de precisar de mais faixas — por exemplo, 7× a 12× com taxa diferente de 2× a 6×.</p>
     ${(e.config.taxas || []).every((t) => !t.taxaPct) ? `<div class="aviso aviso-alerta">${icone('alerta')}<div>
       <strong>Todas as taxas estão em zero.</strong>
       Enquanto ficarem assim, a margem na DRE aparece maior do que a real. Cada operadora cobra o seu — copie da sua fatura.</div></div>` : ''}
@@ -259,17 +307,52 @@ function ligar(raiz, redesenhar) {
     const o = indice === null
       ? { id: 'op' + Date.now(), nome: '', antecipa: true, ativa: true }
       : lista[indice];
+    const atuais = taxasDaOperadora(e.config, o.id);
+    // Abre com a taxa que ESTA' VALENDO, mesmo quando ela vem da regra geral:
+    // abrir em zero faria a pessoa achar que a maquininha nao cobra nada, e
+    // salvar sem mexer zeraria a taxa dela. Salvando, essas passam a ser as
+    // taxas proprias da maquininha.
+    const valendo = (faixa, forma, parcelas) => (faixa
+      ? faixa.taxaPct
+      : taxaPara(e.config, forma, parcelas, o.id).taxaPct);
     modalFormulario({
-      titulo: indice === null ? 'Nova maquininha' : 'Editar maquininha',
-      valores: o,
+      titulo: indice === null ? 'Nova maquininha' : 'Editar ' + (o.nome || 'maquininha'),
+      valores: {
+        ...o,
+        prazoDias: indice === null ? 0
+          : (atuais.credito1 || atuais.parcelado || atuais.debito
+            ? prazoDaOperadora(e.config, o.id)
+            : taxaPara(e.config, 'credito', 1, o.id).prazoDias),
+        taxaDebito: indice === null ? 0 : valendo(atuais.debito, 'debito', 1),
+        taxaCredito1: indice === null ? 0 : valendo(atuais.credito1, 'credito', 1),
+        taxaCreditoParcelado: indice === null ? 0 : valendo(atuais.parcelado, 'credito', 3),
+      },
       campos: [
         { nome: 'nome', rotulo: 'Nome', obrigatorio: true,
           dica: 'Como você chama ela no dia a dia: Nubank, PagSeguro, Mercado Pago…' },
+        { nome: 'separador-taxas', tipo: 'separador', rotulo: 'Taxas desta maquininha' },
+        { nome: 'taxaDebito', rotulo: 'Débito (%)', tipo: 'pct', meia: true },
+        { nome: 'taxaCredito1', rotulo: 'Crédito 1× (%)', tipo: 'pct', meia: true },
+        { nome: 'taxaCreditoParcelado',
+          rotulo: `Crédito parcelado 2× a ${atuais.parcelado ? atuais.parcelado.parcelasAte : 12}× (%)`,
+          tipo: 'pct',
+          dica: atuais.credito1
+            ? 'Copie da fatura da operadora. Parcelado costuma ser mais caro que 1×.'
+            : 'Estes valores vieram da regra geral. Ao salvar, passam a ser as taxas desta maquininha.' },
+        { nome: 'prazoDias', rotulo: 'Prazo em dias', tipo: 'inteiro',
+          dica: 'Quantos dias até o dinheiro cair. Com antecipação, 0 = no mesmo dia da venda.' },
+        { nome: 'separador-como', tipo: 'separador', rotulo: 'Como ela paga' },
         { nome: 'antecipa', rotulo: 'Antecipa (paga a venda inteira de uma vez)', tipo: 'checkbox',
           dica: 'É o padrão hoje. Ligado, o crédito em 3× cai numa entrada só, já sem as taxas.' },
         { nome: 'ativa', rotulo: 'Em uso', tipo: 'checkbox',
           dica: 'Desmarque a maquininha que você não usa mais: ela sai do PDV e o histórico continua.' },
       ],
+      extras: atuais.extras.length
+        ? `<p class="dica">Esta maquininha também tem ${atuais.extras.length} faixa(s) especial(is)
+            (${atuais.extras.map((t) => (t.forma === 'debito' ? 'débito' : 'crédito') + ' '
+              + t.parcelasDe + '× a ' + t.parcelasAte + '×').join(', ')}).
+            Elas não são alteradas aqui — edite em <strong>Faixas de taxa (avançado)</strong>, abaixo.</p>`
+        : '',
       botoesExtras: indice === null ? [] : [{
         texto: 'Remover', classe: 'btn-perigo',
         acao: async (fechar) => {
@@ -283,11 +366,33 @@ function ligar(raiz, redesenhar) {
         },
       }],
       aoSalvar: async (d, fechar) => {
-        const nova = { ...o, ...d };
+        // Os campos de taxa nao moram na operadora: viram faixas em config.taxas,
+        // que e' de onde o PDV e o replay leem. Guardar nos dois lugares criaria
+        // duas verdades e um dia elas discordariam.
+        const { taxaDebito, taxaCredito1, taxaCreditoParcelado, prazoDias, ...campos } = d;
+        const nova = { ...o, ...campos };
         if (!String(nova.nome || '').trim()) { toast('Dê um nome à maquininha.', 'erro'); return; }
         if (indice === null) lista.push(nova); else lista[indice] = nova;
+
+        const prazo = Number(prazoDias) || 0;
+        const faixas = [...(e.config.taxas || [])];
+        // Grava por cima da faixa que existe, ou cria. Faixa especial da mesma
+        // maquininha (7x a 12x, por exemplo) fica intocada.
+        const upsert = (achada, modelo) => {
+          const i = achada ? faixas.indexOf(achada) : -1;
+          if (i >= 0) faixas[i] = { ...faixas[i], ...modelo, prazoDias: prazo };
+          else faixas.push({ id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
+            operadoraId: nova.id, ...modelo, prazoDias: prazo });
+        };
+        upsert(atuais.debito, { forma: 'debito', parcelasDe: 1, parcelasAte: 1, taxaPct: taxaDebito || 0 });
+        upsert(atuais.credito1, { forma: 'credito', parcelasDe: 1, parcelasAte: 1, taxaPct: taxaCredito1 || 0 });
+        upsert(atuais.parcelado, { forma: 'credito', parcelasDe: 2,
+          parcelasAte: atuais.parcelado ? atuais.parcelado.parcelasAte : 12,
+          taxaPct: taxaCreditoParcelado || 0 });
+
         await acoes.definirConfig('operadoras', lista);
-        fechar(); toast('Maquininha salva.', 'ok'); redesenhar();
+        await acoes.definirConfig('taxas', faixas);
+        fechar(); toast('Maquininha e taxas salvas.', 'ok'); redesenhar();
       },
     });
   };

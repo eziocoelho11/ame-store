@@ -49,9 +49,9 @@ tela cheia e funciona offline.
    valor de tributo sozinho, de propósito: esses números mudam por lei todo ano
    e um número errado aqui contamina a DRE inteira.
 2. **Ajustes › Maquininhas** — cadastre cada maquininha que você usa (Nubank,
-   PagSeguro, Mercado Pago…) e marque se ela **antecipa**.
-3. **Ajustes › Taxas da maquininha** — para cada maquininha, copie da fatura a
-   taxa de débito e de cada faixa de crédito, e o prazo em que o dinheiro cai.
+   PagSeguro, Mercado Pago…) e, dentro de cada uma, as **três taxas dela**:
+   débito, crédito 1× e crédito parcelado, mais o prazo e se ela **antecipa**.
+   Copie da fatura da operadora.
    **Enquanto estiver zerado, a DRE mostra margem maior do que a real.**
 4. **Ajustes › Canais de venda** — se vende em marketplace, ponha a comissão dele.
 5. **Estoque › Novo produto** — cadastre a peça com os tamanhos e cores.
@@ -144,9 +144,28 @@ Cancelar uma venda que teve troca desfaz a troca também: a peça nova volta ao
 estoque, a devolvida sai, e a parcela da diferença é cancelada.
 
 ### Maquininhas e antecipação
-Cada maquininha cobra a sua taxa, e o app trata uma por uma. Cadastre em
-**Ajustes › Maquininhas** — nome, se **antecipa** e se está em uso — e depois
-crie as faixas de taxa de cada uma em **Ajustes › Taxas da maquininha**.
+Cada maquininha cobra as suas taxas, e o app trata uma por uma. Tudo fica em
+**Ajustes › Maquininhas**: toque em **Editar** na maquininha e configure ali
+mesmo as três taxas que ela cobra —
+
+| Campo | O que é |
+|---|---|
+| Débito (%) | a taxa do débito |
+| Crédito 1× (%) | crédito à vista |
+| Crédito parcelado 2× a 12× (%) | crédito dividido |
+| Prazo em dias | quantos dias até o dinheiro cair (0 = no mesmo dia) |
+
+A tabela lista, lado a lado, quanto cada maquininha cobra em cada uma das três —
+dá para comparar as suas operadoras de um olhar e saber em qual passar a venda.
+
+Maquininha ainda sem taxa própria aparece marcada como **regra geral**: ela está
+usando a faixa geral, igual a todas as outras. Ao abrir o Editar, os campos já
+vêm preenchidos com a taxa que está valendo; salvando, elas passam a ser as taxas
+próprias daquela maquininha.
+
+Se você precisar de mais faixas do que essas três — por exemplo, 7× a 12× com
+taxa diferente de 2× a 6× — use **Faixas de taxa (avançado)**, logo abaixo. Faixa
+especial criada lá não é mexida pelo formulário da maquininha.
 
 **Antecipação** é o padrão hoje: a operadora paga a venda inteira de uma vez, já
 descontadas todas as taxas. A cliente parcela com o banco dela; a loja recebe uma
