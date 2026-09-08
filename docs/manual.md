@@ -207,6 +207,41 @@ Marque **fixa** (existe mesmo sem vender) ou **variável** (acompanha a venda) �
 Despesa marcada como "repete todo mês" pode ser copiada para o mês seguinte com
 o botão **Repetir recorrentes**.
 
+#### Planejar os meses à frente
+O seletor de **competência** vai até **dezembro do ano corrente**, e as setas ‹ ›
+ao lado dele andam mês a mês. Mês que ainda não chegou vem marcado como
+*"a chegar"*, e a tela avisa que ali é planejamento.
+
+Ao lançar despesa com um mês futuro aberto, duas coisas mudam para você não errar
+de lugar: a data já nasce naquele mês (dia 5, editável) e a despesa nasce como
+**a pagar** — despesa de novembro marcada como paga hoje seria dinheiro saindo do
+caixa por uma conta que ninguém pagou.
+
+**Repetir até dezembro** copia as despesas recorrentes do mês atual para todos os
+meses que faltam até dezembro, de uma vez, todas como a pagar. Rodar duas vezes
+não duplica nada: mês que já tem a mesma despesa é deixado como está.
+
+#### O quadro "Reflexo no resultado do ano"
+Em cima da lista aparecem três números, que são exatamente os do fluxo da tela
+inicial:
+
+| | |
+|---|---|
+| Saldo do mês | entra menos sai naquele mês |
+| Acumulado até aquele mês | o resultado do ano correndo até ali |
+| Fecha o ano em | o acumulado de dezembro, se a previsão se confirmar |
+
+Serve para responder, sem sair da tela, a pergunta que importa ao lançar uma
+despesa de novembro: *o ano ainda fecha no azul?* É esse acumulado que a meta usa.
+
+Uma leitura que evita susto: **mês à frente quase não tem entrada prevista.** O
+app só conta como previsão o que já está contratado — parcela de cartão e de fiado
+com vencimento marcado. Venda que ainda não aconteceu não entra, de propósito.
+Então o saldo de um mês futuro aparece bem negativo: são as despesas contra um
+faturamento que ainda não existe. O número serve para comparar cenários de custo e
+dimensionar a meta, não para prever o resultado. Quando isso acontece, o próprio
+quadro avisa.
+
 ### Saldo a receber importado
 Fiado que nasceu **fora do app** — a planilha que a loja usava antes — entra como
 *saldo a receber importado*: aparece em A receber, na previsão por mês e no saldo
