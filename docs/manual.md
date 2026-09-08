@@ -83,10 +83,60 @@ troco e não conta a diferença como receita.
 Leitor de código de barras USB funciona sem configuração: ele digita e dá Enter,
 e o app entende. Pela câmera, use o botão **Ler código**.
 
-### Devolução e troca
+### Devolução
 Abra a venda (em Vendas) e use **Registrar devolução**. Escolha quantas peças
 voltam, se elas retornam ao estoque e como o valor foi devolvido. A devolução
 entra no mês em que aconteceu, não no mês da venda.
+
+### Troca
+Na mesma venda, ao lado da devolução, fica **Registrar troca** — para quando a
+cliente traz uma peça e leva outra. A janela tem três partes:
+
+1. **O que ela está trazendo** — quantas peças de cada item da venda voltam.
+2. **O que ela está levando** — busca no catálogo, igual ao PDV. Dá para ajustar
+   quantidade e preço de cada peça.
+3. **A diferença** — o app calcula (peça que sai menos peça que volta) e mostra a
+   conta. O valor é **editável**: se você arredondar no balcão, quem manda é o
+   valor que você digitou.
+
+A peça que volta entra no estoque (desmarque a caixinha se voltou com defeito) e
+a peça nova sai do estoque, tudo no mesmo lançamento.
+
+**Diferença a favor da loja:** escolha como recebeu. Dinheiro e PIX entram no
+caixa na data da troca. Débito, crédito e fiado ficam **a receber** e aparecem em
+Financeiro, com vencimento — em crédito, já com a taxa da maquininha descontada.
+
+**Diferença a favor da cliente** (ela levou peça mais barata): digite o valor com
+sinal negativo. Isso reduz a receita do mês da troca. O dinheiro que sai da
+gaveta não entra sozinho no fluxo de caixa — é a mesma limitação da devolução.
+
+#### Por que só a diferença vira faturamento
+Trocar um vestido de R$ 189,90 por outro de R$ 219,90 é **R$ 30,00** de receita
+nova, e não R$ 219,90. A peça devolvida já foi faturada no mês em que a venda
+aconteceu; faturar a peça nova inteira contaria a mesma venda duas vezes e
+inflaria o teto do MEI. É por isso que troca não é "devolver e vender de novo".
+
+O que a troca faz nos números, sempre no **mês da troca**:
+
+| | Efeito |
+|---|---|
+| Receita | só a diferença (negativa, se a loja devolveu) |
+| CMV | sai o custo da peça que voltou, entra o da que saiu |
+| Estoque | a peça devolvida volta, a nova sai |
+| Caixa | a diferença a receber vira parcela, como em qualquer venda |
+| Teto do MEI | conta a diferença, não a peça inteira |
+
+A venda original **não é reescrita**: a lista de itens continua sendo o que foi
+vendido naquele dia, e a troca aparece num quadro próprio embaixo, com o que
+voltou, o que saiu e a diferença. O comprovante em PDF mostra o total da compra,
+as trocas e o total final.
+
+No relatório de desempenho por peça, a troca conta nas duas pontas: a peça que
+voltou deixa de ser venda e a que saiu passa a ser — senão o campeão de vendas
+poderia ser justamente a peça que todo mundo troca.
+
+Cancelar uma venda que teve troca desfaz a troca também: a peça nova volta ao
+estoque, a devolvida sai, e a parcela da diferença é cancelada.
 
 ### Despesas
 Lance tudo que sai: aluguel, energia, embalagem, marketing, pró-labore.

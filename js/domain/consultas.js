@@ -82,9 +82,12 @@ export function vendasDoMes(estado, comp, filtros) {
 export function resumoVendas(vendas) {
   let receita = 0, cmv = 0, taxas = 0, itens = 0, desconto = 0;
   for (const v of vendas) {
-    receita += v.totais.liquido - v.totais.devolvido;
-    cmv += v.totais.cmv - v.totais.cmvDevolvido;
-    taxas += v.totais.taxas + v.totais.comissaoCanal;
+    // Troca entra pela diferenca, como na DRE: a peca devolvida ja' esta' em
+    // `liquido` e a peca nova nao vira faturamento novo, so' a diferenca.
+    receita += v.totais.liquido - v.totais.devolvido + (v.totais.trocaDiferenca || 0);
+    cmv += v.totais.cmv - v.totais.cmvDevolvido + (v.totais.trocaCmvDelta || 0);
+    taxas += v.totais.taxas + v.totais.comissaoCanal
+      + (v.trocas || []).reduce((soma, t) => soma + (t.taxaDiferenca || 0), 0);
     desconto += v.totais.desconto;
     itens += v.itens.reduce((s, i) => s + i.qtd, 0);
   }
@@ -399,6 +402,9 @@ export function rotuloRecebivel(r) {
     loja: 'Venda na loja' };
   const base = nomes[r.tipo] || r.tipo;
   const parc = r.totalParcelas > 1 ? ` ${r.parcela}/${r.totalParcelas}` : '';
+  // Diferenca de troca tem venda, mas nao e' parcela dela: dizer so'
+  // "PIX — venda #12" faria parecer que a venda foi cobrada duas vezes.
+  if (r.origem === 'troca') return `Diferença de troca (${base}) — venda #${r.numeroVenda}`;
   // Saldo importado nao tem venda registrada aqui: identifica pela origem.
   if (!r.vendaId) return r.descricao ? `${base} — ${r.descricao}` : base;
   return `${base}${parc} — venda #${r.numeroVenda}`;
@@ -432,6 +438,33 @@ export function desempenhoPorItem(estado, de, ate) {
         linha.qtd -= it.qtd;
         linha.receita -= it.valor;
         linha.custo -= it.custo;
+      }
+    }
+  }
+
+  // Troca mexe nas duas pontas: a peca que voltou deixa de ser venda, e a que
+  // saiu passa a ser. Sem isso o relatorio premiaria a peca que a cliente
+  // devolveu e nao veria a que ela levou para casa.
+  const linhaDe = (varianteId) => mapa[varianteId] || (mapa[varianteId] = {
+    varianteId, rotulo: nomeVariante(estado, varianteId), qtd: 0, receita: 0, custo: 0,
+    categoria: (estado.produtos[(estado.variantes[varianteId] || {}).produtoId] || {}).categoria || '—',
+  });
+  for (const v of Object.values(estado.vendas)) {
+    if (v.status === 'cancelada') continue;
+    for (const t of v.trocas || []) {
+      if (t.data < de || t.data > ate) continue;
+      for (const it of t.devolvidos) {
+        const linha = mapa[it.varianteId];
+        if (!linha) continue;
+        linha.qtd -= it.qtd;
+        linha.receita -= it.valor;
+        linha.custo -= it.custo;
+      }
+      for (const it of t.novos) {
+        const linha = linhaDe(it.varianteId);
+        linha.qtd += it.qtd;
+        linha.receita += it.valor;
+        linha.custo += it.custo;
       }
     }
   }

@@ -9,6 +9,7 @@ import { icone } from '../icones.js';
 import { kpi, liga, toast, confirmar, tag, abrirModal , vista } from '../ui.js';
 import { abrirRecebimento } from '../receber.js';
 import { abrirEdicaoParcela } from '../editar-parcela.js';
+import { abrirTroca } from '../troca.js';
 import { comprovanteVenda, imprimirFolha } from '../impressao.js';
 
 export async function render(raiz, params) {
@@ -24,8 +25,16 @@ function html(vendaId) {
   const cliente = v.clienteId ? e.clientes[v.clienteId] : null;
   const recebiveis = Object.values(e.recebiveis).filter((r) => r.vendaId === vendaId)
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
-  const liquido = v.totais.liquido - v.totais.taxas - v.totais.comissaoCanal;
-  const margem = liquido - v.totais.cmv;
+  // Com troca, a venda nao vale mais o que valia: soma a diferenca e troca o
+  // custo da peca que voltou pelo da que saiu.
+  const trocas = v.trocas || [];
+  const difTrocas = v.totais.trocaDiferenca || 0;
+  const taxaTrocas = trocas.reduce((soma, t) => soma + (t.taxaDiferenca || 0), 0);
+  const cmvTrocas = v.totais.trocaCmvDelta || 0;
+  const total = v.totais.liquido + difTrocas;
+  const liquido = total - v.totais.taxas - taxaTrocas - v.totais.comissaoCanal;
+  const cmv = v.totais.cmv + cmvTrocas;
+  const margem = liquido - cmv;
 
   const nomesForma = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado' };
 
@@ -36,16 +45,17 @@ function html(vendaId) {
         <h2>Venda #${v.numero}
           ${v.status === 'cancelada' ? tag('cancelada', 'erro') : ''}
           ${v.status === 'devolvida' ? tag('devolvida', 'erro') : ''}
-          ${v.status === 'parcial' ? tag('devolução parcial', 'alerta') : ''}</h2>
+          ${v.status === 'parcial' ? tag('devolução parcial', 'alerta') : ''}
+          ${trocas.length ? tag(trocas.length === 1 ? 'trocada' : trocas.length + ' trocas', 'info') : ''}</h2>
         <div class="texto-2 pequeno">${dataBR(v.data)}${v.hora ? ' às ' + v.hora : ''} · ${esc(v.canalNome)}
           ${cliente ? ' · ' + esc(cliente.nome) : ''}</div>
       </div>
     </div>
     <div class="grade grade-4">
-      ${kpi('Total', brl(v.totais.liquido))}
+      ${kpi('Total', brl(total), difTrocas ? `venda ${brl(v.totais.liquido)} · troca ${difTrocas > 0 ? '+' : '−'} ${brl(Math.abs(difTrocas))}` : '')}
       ${kpi('Líquido', brl(liquido), 'após taxas e comissões')}
-      ${kpi('CMV', brl(v.totais.cmv))}
-      ${kpi('Margem', brl(margem), pct(v.totais.liquido > 0 ? (margem / v.totais.liquido) * 100 : null))}
+      ${kpi('CMV', brl(cmv), cmvTrocas ? 'já com a troca' : '')}
+      ${kpi('Margem', brl(margem), pct(total > 0 ? (margem / total) * 100 : null))}
     </div>
   </div>
 
@@ -98,6 +108,26 @@ function html(vendaId) {
     <p class="dica">Taxa de cartão e comissão de canal já entram como dedução da receita na DRE.</p>
   </div>
 
+  ${trocas.length ? `<div class="cartao">
+    <h3>Trocas</h3>
+    ${trocas.map((t) => `<div class="item" style="cursor:default;align-items:flex-start">
+      <div class="corpo">
+        <div class="titulo">${dataBR(t.data)} — ${esc(t.motivo || 'sem motivo informado')}</div>
+        <div class="sub">
+          Voltou: ${t.devolvidos.map((i) => `${i.qtd}× ${esc(nomeVariante(e, i.varianteId))}`).join(', ')}
+            (${brl(t.valorDevolvido)})${t.retornaEstoque ? '' : ' · não voltou ao estoque'}<br>
+          Levou: ${t.novos.map((i) => `${i.qtd}× ${esc(nomeVariante(e, i.varianteId))}`).join(', ')}
+            (${brl(t.valorNovo)})
+        </div>
+      </div>
+      <div class="valor ${t.diferenca < 0 ? 'negativo' : ''}">
+        ${t.diferenca > 0 ? '+ ' : t.diferenca < 0 ? '− ' : ''}${brl(Math.abs(t.diferenca))}
+        <small>${t.diferenca > 0 ? 'a cliente pagou' : t.diferenca < 0 ? 'a loja devolveu' : 'sem diferença'}</small></div>
+    </div>`).join('')}
+    <p class="dica">Só a diferença entra como receita, no mês da troca. A peça devolvida já tinha sido
+      faturada no mês da venda — faturar a peça nova inteira contaria a mesma venda duas vezes.</p>
+  </div>` : ''}
+
   ${v.devolucoes.length ? `<div class="cartao">
     <h3>Devoluções</h3>
     ${v.devolucoes.map((d) => `<div class="item" style="cursor:default">
@@ -109,6 +139,7 @@ function html(vendaId) {
 
   ${v.status !== 'cancelada' ? `<div class="barra-botoes nao-imprimir">
     <button class="btn" data-acao="devolver">${icone('sincronizar', 16)} Registrar devolução</button>
+    <button class="btn" data-acao="trocar">${icone('etiqueta', 16)} Registrar troca</button>
     <button class="btn btn-perigo" data-acao="cancelar">${icone('fechar', 16)} Cancelar venda</button>
     <button class="btn btn-primario" data-acao="comprovante">${icone('documento', 16)} Comprovante em PDF</button>
   </div>` : `<div class="aviso aviso-erro">${icone('alerta')}<div>
@@ -143,17 +174,24 @@ function ligar(raiz, vendaId) {
 
   liga(raiz, 'click', '[data-acao="cancelar"]', async () => {
     const ok = await confirmar('Cancelar venda #' + v.numero,
-      'As peças voltam ao estoque, os recebíveis em aberto são cancelados e a venda sai da DRE. A venda continua no histórico, marcada como cancelada.',
+      (v.trocas || []).length
+        ? 'As peças voltam ao estoque, as trocas são desfeitas (a peça nova volta e a devolvida sai), os recebíveis em aberto são cancelados e a venda sai da DRE. A venda continua no histórico, marcada como cancelada.'
+        : 'As peças voltam ao estoque, os recebíveis em aberto são cancelados e a venda sai da DRE. A venda continua no histórico, marcada como cancelada.',
       { textoOk: 'Cancelar venda', perigo: true });
     if (!ok) return;
     await acoes.cancelarVenda(vendaId, '');
     toast('Venda cancelada.');
   });
 
+  liga(raiz, 'click', '[data-acao="trocar"]', () => abrirTroca({ vendaId }));
+
   liga(raiz, 'click', '[data-acao="devolver"]', () => {
     // Quantidade ja' devolvida por item, para nao aceitar devolucao a mais.
     const devolvido = {};
     for (const d of v.devolucoes) for (const i of d.itens) devolvido[i.varianteId] = (devolvido[i.varianteId] || 0) + i.qtd;
+    // Peca que saiu numa troca tambem ja' voltou: sem contar aqui, a mesma peca
+    // poderia ser devolvida de novo e entrar duas vezes no estoque.
+    for (const t of v.trocas || []) for (const i of t.devolvidos) devolvido[i.varianteId] = (devolvido[i.varianteId] || 0) + i.qtd;
 
     const linhas = v.itens.map((i) => {
       const restante = i.qtd - (devolvido[i.varianteId] || 0);

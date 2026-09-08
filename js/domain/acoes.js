@@ -265,6 +265,29 @@ export function devolverVenda(vendaId, itens, opcoes = {}) {
   });
 }
 
+/**
+ * TROCA: a cliente traz uma peca e leva outra.
+ * trocar(vendaId, devolvidos, novos, opcoes)
+ *   devolvidos = [{varianteId, qtd}]                 pecas que voltam
+ *   novos      = [{varianteId, qtd, precoUnit}]      pecas que saem
+ *   opcoes     = {diferenca, formaDiferenca, vencimentoDiferenca, motivo,
+ *                 retornaEstoque, data}
+ * `diferenca` em centavos: positiva = a cliente paga; negativa = a loja devolve.
+ * Sem `diferenca`, e' a conta (valor novo menos valor devolvido).
+ */
+export function trocarVenda(vendaId, devolvidos, novos, opcoes = {}) {
+  return log.registrar('venda.trocada', {
+    id: novoId(), vendaId,
+    data: opcoes.data || iso(),
+    devolvidos, novos,
+    diferenca: opcoes.diferenca === undefined ? null : opcoes.diferenca,
+    formaDiferenca: opcoes.formaDiferenca || 'dinheiro',
+    vencimentoDiferenca: opcoes.vencimentoDiferenca || null,
+    motivo: opcoes.motivo || '',
+    retornaEstoque: opcoes.retornaEstoque !== false,
+  });
+}
+
 // ---------------- despesas ----------------
 
 export function lancarDespesa(despesa) {

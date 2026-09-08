@@ -12,6 +12,10 @@
 //    verdadeira: a mesma peca rende menos no marketplace do que no balcao.
 //  - Devolucao entra no mes em que a devolucao ocorreu, nao no mes da venda.
 //    Estornar o mes ja' fechado bagunca o historico.
+//  - Troca entra pela DIFERENCA, no mes da troca, pelo mesmo motivo. A peca
+//    devolvida ja' foi faturada no mes da venda; faturar a peca nova inteira
+//    contaria a mesma venda duas vezes. O CMV troca de peca no mes da troca,
+//    que e' quando a peca nova saiu do estoque de verdade.
 
 import { limitesDaCompetencia } from '../core/fmt.js';
 
@@ -51,6 +55,23 @@ export function calcularDRE(estado, comp) {
     }
   }
 
+  // Trocas do mes: so' a diferenca de preco entra como receita, e o CMV troca a
+  // peca que voltou pela que saiu. Diferenca a favor da cliente vem negativa e
+  // reduz a receita do mes, do mesmo jeito que uma devolucao.
+  let trocasDiferenca = 0, trocasCmv = 0, trocasTaxas = 0, nTrocas = 0;
+  for (const v of Object.values(estado.vendas)) {
+    if (v.status === 'cancelada') continue;
+    for (const t of v.trocas || []) {
+      if (!dentro(t.data)) continue;
+      nTrocas++;
+      trocasDiferenca += t.diferenca;
+      trocasCmv += t.custoNovo - t.custoDevolvido;
+      trocasTaxas += t.taxaDiferenca || 0;
+    }
+  }
+  receitaBruta += trocasDiferenca;
+  taxasCartao += trocasTaxas;
+
   // Imposto: usa o DAS efetivamente lancado no mes; se nao houver lancamento,
   // usa o valor configurado em Ajustes. Se ninguem configurou, fica zero e a
   // tela avisa — melhor um numero faltando e sinalizado do que um numero chutado.
@@ -61,7 +82,7 @@ export function calcularDRE(estado, comp) {
   const impostoEstimado = !lancamentoImposto;
 
   const receitaLiquida = receitaBruta - devolucoes - taxasCartao - comissoes - imposto;
-  const cmvLiquido = cmv - cmvDevolvido;
+  const cmvLiquido = cmv - cmvDevolvido + trocasCmv;
   const lucroBruto = receitaLiquida - cmvLiquido;
 
   // Despesas do mes, separadas por natureza.
@@ -88,9 +109,13 @@ export function calcularDRE(estado, comp) {
   return {
     competencia: comp,
     nVendas, itens,
-    ticketMedio: nVendas ? Math.round(receitaBruta / nVendas) : 0,
+    // Ticket medio conta so' a receita das vendas do mes: a diferenca de uma
+    // troca entra na receita, mas nao e' uma venda nova, e somar as duas coisas
+    // dividido por nVendas daria um ticket que nunca aconteceu.
+    ticketMedio: nVendas ? Math.round((receitaBruta - trocasDiferenca) / nVendas) : 0,
     vendasBruto, descontos, freteCobrado, receitaBruta,
     devolucoes, taxasCartao, comissoes, imposto, impostoEstimado,
+    trocasDiferenca, trocasCmv, nTrocas,
     receitaLiquida, cmv: cmvLiquido, lucroBruto,
     fixas, variaveis, despesas, porCategoria, resultado,
     margemBruta: pct(lucroBruto), margemLiquida: pct(resultado),
@@ -120,6 +145,14 @@ export function faturamento12Meses(estado, competencias) {
   for (const v of Object.values(estado.vendas)) {
     for (const dev of v.devolucoes || []) {
       if (set.has(dev.data.slice(0, 7))) total -= dev.valor;
+    }
+  }
+  // Diferenca de troca e' faturamento novo (ou devolvido, se negativa) e conta
+  // para o teto do MEI no mes em que a troca aconteceu.
+  for (const v of Object.values(estado.vendas)) {
+    if (v.status === 'cancelada') continue;
+    for (const t of v.trocas || []) {
+      if (set.has(t.data.slice(0, 7))) total += t.diferenca;
     }
   }
   return total;

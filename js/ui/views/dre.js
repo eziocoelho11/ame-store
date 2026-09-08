@@ -74,8 +74,10 @@ function mesHTML(e, d) {
         ${linhaDRE('Vendas a preço de tabela', d.vendasBruto, d)}
         ${d.descontos ? linhaDRE('Descontos concedidos', -d.descontos, d, { recuo: true, sinal: '-' }) : ''}
         ${d.freteCobrado ? linhaDRE('Frete cobrado do cliente', d.freteCobrado, d, { recuo: true }) : ''}
+        ${d.trocasDiferenca ? linhaDRE('Diferenças de troca' + (d.nTrocas ? ` <span class="texto-3 pequeno">(${d.nTrocas})</span>` : ''),
+          d.trocasDiferenca, d, { recuo: true, sinal: d.trocasDiferenca < 0 ? '-' : null }) : ''}
         ${linhaDRE('<strong>Receita bruta</strong>', d.receitaBruta, d, { classe: 'subtotal' })}
-        ${d.devolucoes ? linhaDRE('Devoluções e trocas', -d.devolucoes, d, { recuo: true, sinal: '-' }) : ''}
+        ${d.devolucoes ? linhaDRE('Devoluções', -d.devolucoes, d, { recuo: true, sinal: '-' }) : ''}
         ${linhaDRE('Taxas de cartão', -d.taxasCartao, d, { recuo: true, sinal: '-' })}
         ${d.comissoes ? linhaDRE('Comissões de canal', -d.comissoes, d, { recuo: true, sinal: '-' }) : ''}
         ${linhaDRE('DAS-MEI' + (d.impostoEstimado && d.imposto ? ' <span class="tag tag-alerta">estimado</span>' : ''), -d.imposto, d, { recuo: true, sinal: '-' })}
@@ -209,7 +211,8 @@ function exportar() {
   const rubricas = [
     ['Vendas a preço de tabela', 'vendasBruto'], ['Descontos', 'descontos'],
     ['Frete cobrado', 'freteCobrado'], ['Receita bruta', 'receitaBruta'],
-    ['Devoluções', 'devolucoes'], ['Taxas de cartão', 'taxasCartao'],
+    ['Devoluções', 'devolucoes'], ['Diferenças de troca', 'trocasDiferenca'],
+    ['Taxas de cartão', 'taxasCartao'],
     ['Comissões de canal', 'comissoes'], ['DAS-MEI', 'imposto'],
     ['Receita líquida', 'receitaLiquida'], ['CMV', 'cmv'], ['Lucro bruto', 'lucroBruto'],
     ['Despesas fixas', 'fixas'], ['Despesas variáveis', 'variaveis'], ['Resultado', 'resultado'],

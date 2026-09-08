@@ -155,6 +155,7 @@ export function aplicar(e, ev) {
     case 'venda.registrada': registrarVenda(e, ev, d); break;
     case 'venda.cancelada': cancelarVenda(e, ev, d); break;
     case 'venda.devolvida': devolverVenda(e, ev, d); break;
+    case 'venda.trocada': trocarVenda(e, ev, d); break;
 
     // ---------- despesas ----------
     case 'despesa.lancada':
@@ -466,8 +467,9 @@ function registrarVenda(e, ev, d) {
     canal: d.canal, canalNome: canal.nome, clienteId: d.clienteId || null,
     itens, descontoGeral, freteCobrado, obs: d.obs || '',
     pagamentos: d.pagamentos || [],
-    status: 'ativa', devolucoes: [],
-    totais: { bruto, desconto, liquido, cmv, comissaoCanal, taxas: 0, devolvido: 0, cmvDevolvido: 0 },
+    status: 'ativa', devolucoes: [], trocas: [],
+    totais: { bruto, desconto, liquido, cmv, comissaoCanal, taxas: 0, devolvido: 0, cmvDevolvido: 0,
+      trocaDiferenca: 0, trocaCmvDelta: 0 },
     deviceId: ev.deviceId,
   };
   e.vendas[d.id] = venda;
@@ -546,6 +548,40 @@ function cancelarVenda(e, ev, d) {
       obs: 'Cancelamento da venda #' + venda.numero,
     });
   }
+  // Venda que teve troca: o estoque de hoje reflete a troca, nao a venda
+  // original. Desfazer so' os itens vendidos deixaria a peca nova fora do
+  // estoque e a devolvida contada duas vezes. Entao cada troca e' desfeita ao
+  // contrario: a peca nova volta, a devolvida sai.
+  for (const t of venda.trocas || []) {
+    for (const it of t.novos) {
+      const v = e.variantes[it.varianteId];
+      if (!v) continue;
+      v.saldo += it.qtd;
+      v.vendidoTotal -= it.qtd;
+      e.movimentos.push({
+        id: 'canc-' + t.id + '-nov-' + it.varianteId, ts: ev.ts, data: d.data,
+        varianteId: it.varianteId, tipo: 'cancelamento', qtd: it.qtd,
+        custoUnit: it.custoUnit, saldoDepois: v.saldo, ref: venda.id, refTipo: 'cancelamento',
+        obs: 'Cancelamento da troca da venda #' + venda.numero,
+      });
+    }
+    if (t.retornaEstoque) {
+      for (const it of t.devolvidos) {
+        const v = e.variantes[it.varianteId];
+        if (!v) continue;
+        v.saldo -= it.qtd;
+        v.vendidoTotal += it.qtd;
+        e.movimentos.push({
+          id: 'canc-' + t.id + '-dev-' + it.varianteId, ts: ev.ts, data: d.data,
+          varianteId: it.varianteId, tipo: 'cancelamento', qtd: -it.qtd,
+          custoUnit: it.custoUnit, saldoDepois: v.saldo, ref: venda.id, refTipo: 'cancelamento',
+          obs: 'Cancelamento da troca da venda #' + venda.numero,
+        });
+      }
+    }
+  }
+
+  // Pega tambem o recebivel da diferenca de troca: ele tem o vendaId da venda.
   for (const r of Object.values(e.recebiveis)) {
     if (r.vendaId === venda.id) r.status = 'cancelado';
   }
@@ -584,6 +620,134 @@ function devolverVenda(e, ev, d) {
         ref: venda.id, refTipo: 'devolucao', obs: 'Devolução da venda #' + venda.numero,
       });
     }
+  }
+}
+
+/**
+ * TROCA: a cliente traz uma peca e leva outra.
+ *
+ * E' uma devolucao e uma venda no mesmo ato, e por isso nao da' para modelar
+ * como uma coisa so'. O que este evento faz:
+ *
+ *   estoque   — a peca devolvida volta (se puder ser revendida) e a peca nova sai
+ *   receita   — entra SO' A DIFERENCA, no mes da troca
+ *   CMV       — troca o custo da peca que voltou pelo custo da que saiu
+ *   caixa     — a diferenca a receber vira recebivel, igual a qualquer venda
+ *
+ * Por que so' a diferenca vira receita: a peca devolvida ja' foi faturada no mes
+ * da venda. Faturar a peca nova inteira contaria a mesma venda duas vezes e
+ * inflaria o teto do MEI. Trocar uma peca de 189,90 por outra de 219,90 e' 30,00
+ * de receita nova, e e' isso que a cliente pagou a mais.
+ *
+ * Por que no mes da troca, e nao no da venda: e' a mesma regra da devolucao.
+ * Mexer em mes fechado bagunca o historico, e a peca nova saiu do estoque hoje.
+ *
+ * A venda original NAO e' reescrita: `itens` continua sendo o que foi vendido
+ * naquele dia. O que a cliente levou para casa esta' na lista `trocas`.
+ */
+function trocarVenda(e, ev, d) {
+  const venda = e.vendas[d.vendaId];
+  if (!venda || venda.status === 'cancelada') return;
+
+  // Peca que volta: sai pelo preco e pelo custo com que foi vendida. E' a mesma
+  // conta da devolucao, porque metade de uma troca E' uma devolucao.
+  const devolvidos = (d.devolvidos || []).map((it) => {
+    const orig = venda.itens.find((x) => x.varianteId === it.varianteId);
+    const precoUnit = orig ? (orig.precoUnit - orig.descontoUnit) : 0;
+    const custoUnit = orig ? orig.custoUnit : 0;
+    return { varianteId: it.varianteId, qtd: it.qtd, valor: precoUnit * it.qtd,
+      custo: custoUnit * it.qtd, custoUnit };
+  });
+
+  // Peca que sai: custo pelo custo medio VIGENTE neste ponto do replay, igual a
+  // uma venda normal. Nao confiamos no custo que a tela mandou.
+  const novos = (d.novos || []).map((it) => {
+    const v = e.variantes[it.varianteId];
+    const custoUnit = v ? v.custoMedio : (it.custoUnit || 0);
+    const precoUnit = it.precoUnit || 0;
+    return { varianteId: it.varianteId, qtd: it.qtd, precoUnit,
+      valor: precoUnit * it.qtd, custo: custoUnit * it.qtd, custoUnit };
+  });
+
+  const valorDevolvido = devolvidos.reduce((soma, i) => soma + i.valor, 0);
+  const custoDevolvido = devolvidos.reduce((soma, i) => soma + i.custo, 0);
+  const valorNovo = novos.reduce((soma, i) => soma + i.valor, 0);
+  const custoNovo = novos.reduce((soma, i) => soma + i.custo, 0);
+  // A diferenca vem da tela: a loja arredonda ("deixa 20 que ta' bom") e quem
+  // decide isso e' a dona, nao a subtracao. Sem valor informado, e' a conta.
+  const diferenca = (d.diferenca === undefined || d.diferenca === null)
+    ? valorNovo - valorDevolvido
+    : d.diferenca;
+  const retornaEstoque = d.retornaEstoque !== false;
+
+  const troca = {
+    id: d.id, data: d.data, motivo: d.motivo || '',
+    devolvidos, novos,
+    valorDevolvido, custoDevolvido, valorNovo, custoNovo,
+    diferenca, formaDiferenca: d.formaDiferenca || '', retornaEstoque,
+    // Taxa da maquininha sobre a diferenca. Fica AQUI, e nao em totais.taxas da
+    // venda, porque a DRE le' totais.taxas no mes da venda: troca de setembro
+    // numa venda de agosto jogaria a taxa no mes fechado.
+    taxaDiferenca: 0,
+  };
+  venda.trocas = venda.trocas || [];
+  venda.trocas.push(troca);
+  venda.totais.trocaDiferenca = (venda.totais.trocaDiferenca || 0) + diferenca;
+  venda.totais.trocaCmvDelta = (venda.totais.trocaCmvDelta || 0) + (custoNovo - custoDevolvido);
+
+  if (retornaEstoque) {
+    for (const it of devolvidos) {
+      const v = e.variantes[it.varianteId];
+      if (!v) continue;
+      v.saldo += it.qtd;
+      v.vendidoTotal -= it.qtd;
+      e.movimentos.push({
+        id: d.id + '-dev-' + it.varianteId, ts: ev.ts, data: d.data, varianteId: it.varianteId,
+        tipo: 'troca-entrada', qtd: it.qtd, custoUnit: it.custoUnit, saldoDepois: v.saldo,
+        ref: venda.id, refTipo: 'troca', obs: 'Troca da venda #' + venda.numero,
+      });
+    }
+  }
+  for (const it of novos) {
+    const v = e.variantes[it.varianteId];
+    if (!v) continue;
+    v.saldo -= it.qtd;
+    v.vendidoTotal += it.qtd;
+    e.movimentos.push({
+      id: d.id + '-nov-' + it.varianteId, ts: ev.ts, data: d.data, varianteId: it.varianteId,
+      tipo: 'troca-saida', qtd: -it.qtd, custoUnit: it.custoUnit, saldoDepois: v.saldo,
+      ref: venda.id, refTipo: 'troca', obs: 'Troca da venda #' + venda.numero,
+    });
+  }
+
+  // Diferenca a favor da loja: vira recebivel como qualquer venda, para entrar
+  // no caixa no dia certo. Dinheiro e PIX entram na hora; cartao e fiado ficam
+  // a receber. Diferenca a favor da CLIENTE nao gera recebivel negativo — ela
+  // ja' esta' descontada da receita do mes, e o app nao tem conta de saida.
+  if (diferenca > 0) {
+    const forma = d.formaDiferenca || 'dinheiro';
+    const imediato = (forma === 'dinheiro' || forma === 'pix');
+    const regra = taxaPara(e.config, forma, 1);
+    const taxaPct = imediato ? 0 : regra.taxaPct;
+    const taxa = aplicaPct(diferenca, taxaPct);
+    const liquido = diferenca - taxa;
+    const vencimento = d.vencimentoDiferenca
+      || (imediato ? d.data : somaDias(d.data, regra.prazoDias || 30));
+    const rid = 'troca-' + d.id;
+    e.recebiveis[rid] = {
+      id: rid, vendaId: venda.id, numeroVenda: venda.numero, clienteId: venda.clienteId || null,
+      tipo: forma, bandeira: '', parcela: 1, totalParcelas: 1,
+      bruto: diferenca, taxaPct, taxa, liquido,
+      vencimento, data: d.data,
+      status: imediato ? 'recebido' : 'aberto',
+      recebidoEm: imediato ? d.data : null,
+      formaRecebimento: imediato ? forma : null,
+      pago: imediato ? liquido : 0,
+      saldo: imediato ? 0 : liquido,
+      pagamentos: imediato ? [{ valor: liquido, data: d.data, forma }] : [],
+      origem: 'troca', descricao: 'diferença de troca',
+    };
+    troca.taxaDiferenca = taxa;
   }
 }
 

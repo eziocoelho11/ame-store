@@ -78,7 +78,16 @@ export function comprovanteVenda(estado, venda) {
     <tfoot>
       ${venda.descontoGeral ? `<tr><td colspan="4">Desconto na venda</td><td class="dir">− ${brl(venda.descontoGeral)}</td></tr>` : ''}
       ${venda.freteCobrado ? `<tr><td colspan="4">Frete</td><td class="dir">${brl(venda.freteCobrado)}</td></tr>` : ''}
-      <tr class="folha-total"><td colspan="4">Total da compra</td><td class="dir">${brl(venda.totais.liquido)}</td></tr>
+      ${(venda.trocas || []).length
+        ? `<tr><td colspan="4">Total da compra</td><td class="dir">${brl(venda.totais.liquido)}</td></tr>`
+        : `<tr class="folha-total"><td colspan="4">Total da compra</td><td class="dir">${brl(venda.totais.liquido)}</td></tr>`}
+      ${(venda.trocas || []).map((t) => `<tr><td colspan="4">Troca em ${dataBR(t.data)}${t.motivo ? ' — ' + esc(t.motivo) : ''}
+        ${t.novos.map((i) => esc(nomeVariante(estado, i.varianteId))).join(', ')}</td>
+        <td class="dir">${t.diferenca < 0 ? '− ' : ''}${brl(Math.abs(t.diferenca))}</td></tr>`).join('')}
+      ${(venda.trocas || []).length
+        ? `<tr class="folha-total"><td colspan="4">Total com as trocas</td>
+            <td class="dir">${brl(venda.totais.liquido + (venda.totais.trocaDiferenca || 0))}</td></tr>`
+        : ''}
     </tfoot>
   </table>
 

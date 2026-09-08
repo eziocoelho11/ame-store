@@ -50,16 +50,19 @@ function html() {
     const status = v.status === 'cancelada' ? tag('cancelada', 'erro')
       : v.status === 'devolvida' ? tag('devolvida', 'erro')
       : v.status === 'parcial' ? tag('devolução parcial', 'alerta') : '';
+    const dif = v.totais.trocaDiferenca || 0;
+    const etiquetaTroca = (v.trocas || []).length ? tag('troca', 'info') : '';
     const cliente = v.clienteId && e.clientes[v.clienteId] ? e.clientes[v.clienteId].nome : '';
     const formas = [...new Set(v.pagamentos.map((p) => p.forma))].join(', ');
     return `<div class="item" data-venda="${v.id}">
       <div class="avatar">#${v.numero}</div>
       <div class="corpo">
-        <div class="titulo">${esc(cliente || v.canalNome)} ${status}</div>
+        <div class="titulo">${esc(cliente || v.canalNome)} ${status} ${etiquetaTroca}</div>
         <div class="sub">${dataBR(v.data)}${v.hora ? ' ' + v.hora : ''} · ${v.itens.reduce((s, i) => s + i.qtd, 0)} peças · ${esc(formas)}</div>
       </div>
       <div class="valor"${v.status === 'cancelada' ? ' style="text-decoration:line-through;opacity:.5"' : ''}>
-        ${brl(v.totais.liquido)}${v.totais.devolvido ? `<small class="negativo">− ${brl(v.totais.devolvido)}</small>` : ''}</div>
+        ${brl(v.totais.liquido + dif)}${v.totais.devolvido ? `<small class="negativo">− ${brl(v.totais.devolvido)}</small>` : ''}
+        ${dif ? `<small class="${dif < 0 ? 'negativo' : ''}">troca ${dif > 0 ? '+' : '−'} ${brl(Math.abs(dif))}</small>` : ''}</div>
     </div>`;
   }).join('')}</div></div>`
     : vazio('recibo', 'Nenhuma venda no período',

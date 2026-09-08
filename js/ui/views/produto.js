@@ -83,7 +83,9 @@ function html(produtoId) {
       <thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th class="dir">Qtd</th><th class="dir">Saldo</th><th>Obs.</th></tr></thead>
       <tbody>${movimentos.map((m) => {
         const v = e.variantes[m.varianteId];
-        const nomes = { entrada: 'Entrada', venda: 'Venda', 'ajuste+': 'Ajuste +', 'ajuste-': 'Ajuste −', devolucao: 'Devolução', cancelamento: 'Cancelamento' };
+        const nomes = { entrada: 'Entrada', venda: 'Venda', 'ajuste+': 'Ajuste +', 'ajuste-': 'Ajuste −',
+          devolucao: 'Devolução', cancelamento: 'Cancelamento',
+          'troca-entrada': 'Troca (voltou)', 'troca-saida': 'Troca (saiu)' };
         return `<tr><td>${dataBR(m.data)}</td><td>${nomes[m.tipo] || m.tipo}</td>
         <td class="pequeno">${esc([v.tamanho, v.cor].filter(Boolean).join('/'))}</td>
         <td class="dir ${m.qtd < 0 ? 'negativo' : 'positivo'}">${m.qtd > 0 ? '+' : ''}${m.qtd}</td>
