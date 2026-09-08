@@ -442,6 +442,106 @@ export function rotuloRecebivel(r) {
 
 // ---------------- relatorios ----------------
 
+/**
+ * Desempenho por CANAL num periodo: onde a venda acontece.
+ *
+ * Existe para responder uma pergunta so', e caro de errar: o ponto fixo se
+ * paga? Por isso devolve receita E margem por canal, e nao so' faturamento —
+ * venda no balcao e venda levada ao cliente podem faturar igual e sobrar
+ * diferente, porque o desconto dado na mao e' outro.
+ *
+ * Segue a mesma convencao do resto do app: devolucao desconta, e troca entra
+ * so' pela diferenca.
+ */
+export function desempenhoPorCanal(estado, de, ate) {
+  const mapa = new Map();
+  const linha = (id, nome) => {
+    if (!mapa.has(id)) {
+      mapa.set(id, {
+        canal: id, nome, nVendas: 0, pecas: 0,
+        receita: 0, cmv: 0, taxas: 0, comissao: 0, desconto: 0,
+      });
+    }
+    return mapa.get(id);
+  };
+  // Canal cadastrado aparece mesmo com zero venda: coluna vazia tambem informa
+  // — dizer "por fora nao vendeu nada no periodo" e' uma resposta.
+  for (const c of (estado.config.canais || [])) linha(c.id, c.nome);
+
+  for (const v of vendasNoPeriodo(estado, de, ate)) {
+    const l = linha(v.canal, v.canalNome || v.canal);
+    l.nVendas++;
+    l.pecas += v.itens.reduce((soma, i) => soma + i.qtd, 0);
+    l.receita += v.totais.liquido - v.totais.devolvido + (v.totais.trocaDiferenca || 0);
+    l.cmv += v.totais.cmv - v.totais.cmvDevolvido + (v.totais.trocaCmvDelta || 0);
+    l.taxas += v.totais.taxas + (v.trocas || []).reduce((soma, t) => soma + (t.taxaDiferenca || 0), 0);
+    l.comissao += v.totais.comissaoCanal;
+    l.desconto += v.totais.desconto;
+  }
+
+  const lista = [...mapa.values()].map((l) => {
+    const margem = l.receita - l.cmv - l.taxas - l.comissao;
+    return {
+      ...l, margem,
+      ticket: l.nVendas ? Math.round(l.receita / l.nVendas) : 0,
+      margemPct: l.receita > 0 ? (margem / l.receita) * 100 : null,
+    };
+  });
+  const receitaTotal = lista.reduce((soma, l) => soma + l.receita, 0);
+  return lista
+    .map((l) => ({ ...l, participacao: receitaTotal > 0 ? (l.receita / receitaTotal) * 100 : null }))
+    .sort((a, b) => b.receita - a.receita);
+}
+
+/**
+ * O confronto que decide o ponto fixo: o que veio DO BALCAO contra o que veio
+ * de fora dele. Junta os canais em dois blocos e traz, do lado, as despesas
+ * FIXAS do periodo — que e' o custo de existir o ponto.
+ *
+ * NAO tenta ratear aluguel entre canais, de proposito: parte do que se vende
+ * por fora nasce da vitrine, e parte da despesa fixa serviria a loja mesmo sem
+ * balcao. Qualquer rateio seria um numero inventado com cara de resposta. A
+ * tela mostra os dois lados e deixa a conclusao para quem conhece a operacao.
+ */
+export function pontoFixoVsFora(estado, de, ate) {
+  const doPonto = new Set(estado.config.canaisDoPonto || ['loja']);
+  const canais = desempenhoPorCanal(estado, de, ate);
+  const junta = (filtro) => {
+    const parte = canais.filter(filtro);
+    const soma = (campo) => parte.reduce((s, l) => s + l[campo], 0);
+    const receita = soma('receita');
+    const margem = soma('margem');
+    return {
+      canais: parte, nVendas: soma('nVendas'), pecas: soma('pecas'),
+      receita, margem,
+      ticket: soma('nVendas') ? Math.round(receita / soma('nVendas')) : 0,
+      margemPct: receita > 0 ? (margem / receita) * 100 : null,
+    };
+  };
+  const ponto = junta((l) => doPonto.has(l.canal));
+  const fora = junta((l) => !doPonto.has(l.canal));
+  const receitaTotal = ponto.receita + fora.receita;
+
+  // Despesa FIXA do periodo: o custo de manter o ponto de pe' (aluguel, energia,
+  // condominio). Variavel fica fora porque acompanha a venda em qualquer canal.
+  let fixas = 0;
+  for (const d of Object.values(estado.despesas)) {
+    const data = d.pago ? (d.dataPagto || d.data) : d.data;
+    if (data < de || data > ate) continue;
+    if (d.tipo === 'fixa') fixas += d.valor;
+  }
+
+  return {
+    ponto, fora, fixas, receitaTotal,
+    participacaoPonto: receitaTotal > 0 ? (ponto.receita / receitaTotal) * 100 : null,
+    participacaoFora: receitaTotal > 0 ? (fora.receita / receitaTotal) * 100 : null,
+    // Sobra da margem do balcao depois de pagar TODA a despesa fixa. Negativo
+    // nao condena o ponto — parte do que se vende por fora vem da vitrine —,
+    // mas e' o numero que abre a conversa.
+    margemPontoMenosFixas: ponto.margem - fixas,
+  };
+}
+
 /** Desempenho por variante no periodo: quanto vendeu, quanto sobrou de margem. */
 export function desempenhoPorItem(estado, de, ate) {
   const mapa = {};

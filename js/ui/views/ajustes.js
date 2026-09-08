@@ -155,7 +155,13 @@ async function html() {
         <td class="dir num">${String(c.comissaoPct || 0).replace('.', ',')}%</td>
         <td class="dir"><button class="btn btn-p" data-canal="${i}">Editar</button></td></tr>`).join('')}
       </tbody></table></div>
-    <p class="dica">Comissão de marketplace entra como dedução da receita, para a margem por canal ficar honesta.</p>
+    ${!(e.config.canais || []).some((c) => c.id === 'externa') ? `<div class="aviso aviso-info">${icone('info')}<div>
+      <strong>Falta o canal "Vendas por fora".</strong>
+      É o que separa a venda no balcão da venda levada ao cliente, e o que alimenta a aba
+      <em>Onde vende</em> em Relatórios.
+      <button class="btn btn-p mt" data-acao="canal-por-fora">Adicionar "Vendas por fora"</button></div></div>` : ''}
+    <p class="dica">Comissão de marketplace entra como dedução da receita, para a margem por canal ficar honesta.
+      Na comparação de Relatórios, <strong>Loja física</strong> é o balcão e todo o resto conta como venda por fora.</p>
   </div>
 
   <div class="cartao">
@@ -442,6 +448,19 @@ function ligar(raiz, redesenhar) {
   };
   liga(raiz, 'click', '[data-taxa]', (ev, el) => editarTaxa(Number(el.dataset.taxa)));
   liga(raiz, 'click', '[data-acao="nova-taxa"]', () => editarTaxa(null));
+
+  liga(raiz, 'click', '[data-acao="canal-por-fora"]', async () => {
+    const lista = [...(e.config.canais || [])];
+    if (lista.some((c) => c.id === 'externa')) return;
+    // Entra depois da loja fisica: na tela de vender, os dois lados da
+    // comparacao ficam lado a lado.
+    const i = lista.findIndex((c) => c.id === 'loja');
+    const canal = { id: 'externa', nome: 'Vendas por fora', comissaoPct: 0 };
+    if (i >= 0) lista.splice(i + 1, 0, canal); else lista.push(canal);
+    await acoes.definirConfig('canais', lista);
+    toast('Canal "Vendas por fora" adicionado.', 'ok');
+    redesenhar();
+  });
 
   const editarCanal = (indice) => {
     const lista = [...(e.config.canais || [])];

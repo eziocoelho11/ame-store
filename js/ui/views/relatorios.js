@@ -1,6 +1,7 @@
 // relatorios.js — as perguntas que decidem a proxima compra.
 import * as log from '../../core/eventlog.js';
-import { desempenhoPorItem, curvaABC, giroEstoque, receitaPorCategoria, padraoDeVenda, valorEstoque } from '../../domain/consultas.js';
+import { desempenhoPorItem, curvaABC, giroEstoque, receitaPorCategoria, padraoDeVenda, valorEstoque,
+  desempenhoPorCanal, pontoFixoVsFora } from '../../domain/consultas.js';
 import { brl, brlSimples, esc, pct, num, iso, competencia, limitesDaCompetencia, DIAS_SEMANA } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, vazio, tag, paraCSV, csvMoeda, baixarArquivo , vista } from '../ui.js';
@@ -20,6 +21,7 @@ export async function render(raiz) {
 
 const ABAS = [
   ['vendidos', 'Mais vendidos'],
+  ['canal', 'Onde vende'],
   ['abc', 'Curva ABC'],
   ['giro', 'Giro e cobertura'],
   ['categoria', 'Por categoria'],
@@ -43,10 +45,11 @@ function html() {
 
 function conteudo(e) {
   const itens = desempenhoPorItem(e, periodo.de, periodo.ate);
-  if (!itens.length && aba !== 'giro') {
+  if (!itens.length && aba !== 'giro' && aba !== 'canal') {
     return vazio('grafico', 'Sem vendas no período', 'Ajuste as datas acima.');
   }
   if (aba === 'vendidos') return abaVendidos(itens);
+  if (aba === 'canal') return abaCanal(e);
   if (aba === 'abc') return abaABC(e);
   if (aba === 'giro') return abaGiro(e);
   if (aba === 'categoria') return abaCategoria(e);
@@ -150,6 +153,93 @@ function abaCategoria(e) {
   </div>`;
 }
 
+/**
+ * "Onde vende": balcao contra venda por fora. E' a aba que serve a uma decisao
+ * de verdade — manter ou nao o ponto fixo —, entao mostra os dois lados e diz
+ * em voz alta o que ela NAO sabe responder.
+ */
+function abaCanal(e) {
+  const canais = desempenhoPorCanal(e, periodo.de, periodo.ate);
+  const cmp = pontoFixoVsFora(e, periodo.de, periodo.ate);
+  const comVenda = canais.filter((c) => c.nVendas > 0);
+
+  if (!comVenda.length) {
+    return vazio('loja', 'Sem vendas no período',
+      'Ajuste as datas acima. Quando houver venda, aqui aparece quanto veio do balcão e quanto veio de fora.');
+  }
+
+  const lado = (titulo, bloco, participacao, classe) => `
+    <div class="cartao ${classe}">
+      <h3>${titulo}</h3>
+      <div class="valor-kpi">${brl(bloco.receita)}</div>
+      <div class="nota-kpi">${participacao === null ? '—' : pct(participacao)} da receita do período
+        · ${bloco.nVendas} venda(s) · ${num(bloco.pecas)} peças</div>
+      <table><tbody>
+        <tr><td>Margem</td><td class="dir num">${brlSimples(bloco.margem)}</td></tr>
+        <tr><td>Margem %</td><td class="dir pct">${pct(bloco.margemPct)}</td></tr>
+        <tr><td>Ticket médio</td><td class="dir num">${brlSimples(bloco.ticket)}</td></tr>
+      </tbody></table>
+      ${bloco.canais.filter((c) => c.nVendas > 0).length
+        ? `<div class="texto-3 pequeno">${bloco.canais.filter((c) => c.nVendas > 0)
+            .map((c) => esc(c.nome)).join(' · ')}</div>` : ''}
+    </div>`;
+
+  return `
+  <div class="grade grade-2">
+    ${lado('No ponto físico', cmp.ponto, cmp.participacaoPonto,
+      cmp.ponto.receita >= cmp.fora.receita ? 'destaque' : '')}
+    ${lado('Por fora da loja', cmp.fora, cmp.participacaoFora,
+      cmp.fora.receita > cmp.ponto.receita ? 'destaque' : '')}
+  </div>
+
+  <div class="cartao">
+    <h3>O ponto fixo se paga?</h3>
+    <table><tbody>
+      <tr><td>Margem do que vendeu no balcão</td><td class="dir num">${brlSimples(cmp.ponto.margem)}</td></tr>
+      <tr><td>Despesas fixas do período</td><td class="dir num negativo">− ${brlSimples(cmp.fixas)}</td></tr>
+      <tr class="subtotal"><td><strong>Sobra</strong></td>
+        <td class="dir num negrito ${cmp.margemPontoMenosFixas < 0 ? 'negativo' : 'positivo'}">
+          ${brlSimples(cmp.margemPontoMenosFixas)}</td></tr>
+    </tbody></table>
+    <p class="dica"><strong>Este número abre a conversa, não a encerra.</strong>
+      ${cmp.margemPontoMenosFixas < 0
+        ? 'A margem do balcão sozinha não cobriu as despesas fixas do período.'
+        : 'A margem do balcão cobriu as despesas fixas do período.'}
+      Mas parte do que se vende por fora <strong>nasce da vitrine</strong> — a cliente que foi abordada na rua
+      já conhecia a loja —, e boa parte da despesa fixa continuaria existindo sem o balcão (estoque em algum
+      lugar, energia, internet). O app <strong>não rateia aluguel entre canais</strong> de propósito: qualquer
+      rateio seria número inventado com cara de resposta. Olhe a tendência de vários meses, não um mês só.</p>
+  </div>
+
+  <div class="grade grade-2">
+    <div class="cartao"><h3>Receita por canal</h3>
+      ${rosca(comVenda.map((c) => ({ rotulo: c.nome, valor: c.receita })))}</div>
+    <div class="cartao"><h3>Margem por canal</h3>
+      ${ranking(comVenda.map((c) => ({ rotulo: c.nome, valor: c.margem })))}</div>
+  </div>
+
+  <div class="cartao">
+    <h3>Detalhe por canal</h3>
+    <div class="rolagem-x"><table>
+      <thead><tr><th>Canal</th><th class="dir">Vendas</th><th class="dir">Peças</th>
+        <th class="dir">Receita (R$)</th><th class="dir">% receita</th>
+        <th class="dir">Ticket (R$)</th><th class="dir">Margem (R$)</th><th class="dir">%</th></tr></thead>
+      <tbody>${canais.map((c) => `<tr${c.nVendas ? '' : ' style="opacity:.5"'}>
+        <td>${esc(c.nome)}</td>
+        <td class="dir num">${c.nVendas}</td>
+        <td class="dir num">${num(c.pecas)}</td>
+        <td class="dir num">${brlSimples(c.receita)}</td>
+        <td class="dir pct">${pct(c.participacao)}</td>
+        <td class="dir num">${brlSimples(c.ticket)}</td>
+        <td class="dir num">${brlSimples(c.margem)}</td>
+        <td class="dir pct">${pct(c.margemPct)}</td></tr>`).join('')}
+      </tbody></table></div>
+    <p class="dica">Margem já desconta CMV, taxa de maquininha e comissão do canal. Canal sem venda no
+      período aparece apagado — "não vendeu nada aqui" também é resposta. Para separar o balcão do resto,
+      o app usa o canal <strong>Loja física</strong>; os outros contam como venda por fora.</p>
+  </div>`;
+}
+
 function abaQuando(e) {
   const p = padraoDeVenda(e, periodo.de, periodo.ate);
   return `
@@ -168,15 +258,21 @@ function ligar(raiz, redesenhar) {
   liga(raiz, 'click', '[data-aba]', (ev, el) => { aba = el.dataset.aba; redesenhar(); });
   liga(raiz, 'click', '[data-acao="csv"]', () => {
     const e = log.estado();
+    const umDecimal = (v) => (v === null ? '' : v.toFixed(1).replace('.', ','));
     const itens = aba === 'giro'
       ? giroEstoque(e, periodo.de, periodo.ate).map((g) => [g.rotulo, g.saldo, g.vendido,
         g.coberturaDias === null ? 'não vendeu' : g.coberturaDias, csvMoeda(g.saldo * g.custoMedio)])
-      : desempenhoPorItem(e, periodo.de, periodo.ate).map((i) => [i.rotulo, i.categoria, i.qtd,
-        csvMoeda(i.receita), csvMoeda(i.custo), csvMoeda(i.margem),
-        i.margemPct === null ? '' : i.margemPct.toFixed(1).replace('.', ',')]);
+      : aba === 'canal'
+        ? desempenhoPorCanal(e, periodo.de, periodo.ate).map((c) => [c.nome, c.nVendas, c.pecas,
+          csvMoeda(c.receita), umDecimal(c.participacao), csvMoeda(c.ticket),
+          csvMoeda(c.cmv), csvMoeda(c.taxas), csvMoeda(c.margem), umDecimal(c.margemPct)])
+        : desempenhoPorItem(e, periodo.de, periodo.ate).map((i) => [i.rotulo, i.categoria, i.qtd,
+          csvMoeda(i.receita), csvMoeda(i.custo), csvMoeda(i.margem), umDecimal(i.margemPct)]);
     const cabecalho = aba === 'giro'
       ? ['Peça', 'Saldo', 'Vendidas', 'Cobertura (dias)', 'Parado a custo']
-      : ['Peça', 'Categoria', 'Qtd', 'Receita', 'Custo', 'Margem', 'Margem %'];
+      : aba === 'canal'
+        ? ['Canal', 'Vendas', 'Peças', 'Receita', '% receita', 'Ticket médio', 'CMV', 'Taxas', 'Margem', 'Margem %']
+        : ['Peça', 'Categoria', 'Qtd', 'Receita', 'Custo', 'Margem', 'Margem %'];
     baixarArquivo(`AME Store - relatório ${aba} ${periodo.de} a ${periodo.ate}.csv`,
       paraCSV(cabecalho, itens), 'text/csv');
     toast('Arquivo gerado.', 'ok');

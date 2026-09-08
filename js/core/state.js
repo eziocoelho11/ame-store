@@ -18,11 +18,19 @@ export const CONFIG_PADRAO = {
   // Valores tributarios NAO vem preenchidos de proposito: mudam por lei todo ano.
   // O app avisa na tela inicial enquanto `confirmado` for false.
   mei: { ativo: true, dasMensal: 0, tetoAnual: 8100000, dataReferencia: '', confirmado: false },
+  // Canal responde ONDE a venda aconteceu, e a pergunta que ele existe para
+  // responder e' se o ponto fixo se paga: "Loja física" e' o balcao, "Vendas por
+  // fora" e' a peca levada ao cliente. Sao os dois lados da mesma decisao.
   canais: [
     { id: 'loja', nome: 'Loja física', comissaoPct: 0 },
+    { id: 'externa', nome: 'Vendas por fora', comissaoPct: 0 },
     { id: 'instagram', nome: 'Instagram / WhatsApp', comissaoPct: 0 },
     { id: 'marketplace', nome: 'Marketplace', comissaoPct: 0 },
   ],
+  // Canais que contam como "dentro do ponto fixo" na comparacao de Relatorios.
+  // Fica na config, e nao no codigo, porque quem decide o que e' balcao e' a
+  // loja: um dia uma feira fixa pode virar ponto, e vice-versa.
+  canaisDoPonto: ['loja'],
   // Maquininhas. Nasce vazio: quem instala cadastra as suas em Ajustes, com a
   // taxa de cada uma. `antecipa` = a operadora paga a venda inteira de uma vez,
   // ja' descontada a taxa — e' o padrao do mercado hoje, e muda a agenda de

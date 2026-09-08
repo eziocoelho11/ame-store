@@ -85,6 +85,18 @@ troco e não conta a diferença como receita.
   de mês em mês, no mesmo dia, sem juros e sem taxa. Cada parcela vira uma linha
   em Financeiro › A receber e no saldo em fiado da cliente.
 
+No alto da tela fica o **canal**, que responde *onde essa venda aconteceu*:
+
+| Canal | Quando usar |
+|---|---|
+| **Loja física** | a cliente entrou e comprou no balcão |
+| **Vendas por fora** | peça levada ao cliente, abordagem na rua, visita, entrega |
+| **Instagram / WhatsApp** | pedido que chegou pela rede |
+| **Marketplace** | venda em plataforma, com comissão |
+
+Marcar o canal certo custa um toque e é o que sustenta a aba **Onde vende** em
+Relatórios — a que compara o balcão com o que se vende fora dele.
+
 Leitor de código de barras USB funciona sem configuração: ele digita e dá Enter,
 e o app entende. Pela câmera, use o botão **Ler código**.
 
@@ -418,6 +430,34 @@ A marcação é sua, não do app: ele não vê a conta da reserva, então quem s
 o dinheiro foi separado é você. A linha "sobrou de caixa no mês" responde outra
 pergunta — *deu para guardar?* — e as duas juntas mostram se a provisão saiu do
 papel.
+
+### Onde vende: o balcão contra a venda por fora
+Em **Relatórios › Onde vende**, dois quadros lado a lado mostram quanto do
+período veio **do ponto físico** e quanto veio **de fora dele**, com receita,
+participação, número de vendas, peças, margem e ticket médio. Abaixo, o detalhe
+canal por canal, e os gráficos de receita e de margem.
+
+Para o app, **Loja física** é o balcão; todo o resto — vendas por fora,
+Instagram, marketplace — conta como venda fora do ponto.
+
+#### O quadro "O ponto fixo se paga?"
+Põe de um lado a **margem do que vendeu no balcão** e do outro as **despesas
+fixas do período**, e mostra a sobra.
+
+Esse número **abre a conversa, não a encerra**, e vale entender por quê:
+
+- Parte do que se vende por fora **nasce da vitrine**. A cliente abordada na rua
+  muitas vezes já conhecia a loja — o ponto trabalhou para aquela venda mesmo sem
+  ela ter entrado.
+- Boa parte da despesa fixa **continuaria existindo sem o balcão**: o estoque
+  precisa ficar em algum lugar, e energia e internet vão junto.
+- O app **não rateia aluguel entre canais** de propósito. Qualquer rateio seria
+  um número inventado com cara de resposta, e essa é uma decisão grande demais
+  para se apoiar num chute.
+
+Use a **tendência de vários meses**, não o resultado de um mês só. Um mês com
+liquidação, ou um mês em que você passou mais tempo na rua do que na loja, diz
+pouco sozinho.
 
 ### Custo médio ponderado
 Cada entrada recalcula o custo médio da peça. Se você comprou 10 a R$ 50 e depois
