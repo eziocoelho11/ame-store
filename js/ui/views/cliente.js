@@ -59,7 +59,7 @@ function html(clienteId) {
     <div class="grade grade-4">
       ${kpi('Total comprado', brl(total), vendas.length + ' compra(s)')}
       ${kpi('Ticket médio', brl(vendas.length ? Math.round(total / vendas.length) : 0), num(pecas) + ' peças')}
-      ${kpi('Em fiado', brl(fiado), fiado ? emAberto.length + ' parcela(s)' : 'em dia', fiado ? '' : '')}
+      ${kpi('A prazo em aberto', brl(fiado), fiado ? emAberto.length + ' parcela(s)' : 'em dia', fiado ? '' : '')}
       ${kpi('Tamanho que mais leva', tamanhoFavorito || '—',
         categorias.length ? categorias.map(([k]) => k).join(', ') : '')}
     </div>
@@ -71,7 +71,7 @@ function html(clienteId) {
   </div>
 
   ${emAberto.length ? `<div class="cartao">
-    <h3>Fiado em aberto</h3>
+    <h3>A prazo em aberto</h3>
     <div class="lista">${emAberto.map((r) => `
       <div class="item" style="cursor:default">
         <div class="corpo"><div class="titulo">${r.vendaId ? 'Venda #' + r.numeroVenda : esc(r.descricao || 'Saldo importado')}</div>

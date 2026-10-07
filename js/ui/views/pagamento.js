@@ -11,7 +11,7 @@ const FORMAS = [
   { id: 'pix', nome: 'PIX' },
   { id: 'debito', nome: 'Débito' },
   { id: 'credito', nome: 'Crédito' },
-  { id: 'fiado', nome: 'Fiado' },
+  { id: 'fiado', nome: 'A prazo' },
 ];
 
 export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) {
@@ -43,7 +43,7 @@ export function abrirPagamento({ total, clienteId, avisoEstoque, aoConfirmar }) 
             return;
           }
           const fiadoSemCliente = linhas.some((l) => l.forma === 'fiado') && !clienteId;
-          if (fiadoSemCliente) { toast('Fiado precisa de um cliente selecionado na venda.', 'erro'); return; }
+          if (fiadoSemCliente) { toast('Venda a prazo precisa de um cliente selecionado na venda.', 'erro'); return; }
           const btn = m.el.querySelectorAll('.modal-rodape .btn')[1];
           if (btn) btn.disabled = true;
           try {

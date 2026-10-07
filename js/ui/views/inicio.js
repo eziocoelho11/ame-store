@@ -79,7 +79,7 @@ function html() {
     ${kpi('Hoje', brl(receitaHoje), `${vendasHoje.length} ${vendasHoje.length === 1 ? 'venda' : 'vendas'}`)}
     ${kpi('A receber', brl(receber.total),
       receber.nVencidos ? `<span class="negativo">${receber.nVencidos} vencido(s): ${brl(receber.vencidos)}</span>`
-        : `cartão ${brl(receber.cartao)} · fiado ${brl(receber.fiado)}`)}
+        : `cartão ${brl(receber.cartao)} · a prazo ${brl(receber.fiado)}`)}
     ${kpi('Ticket médio', brl(dre.ticketMedio), dre.itens ? num(dre.itens) + ' peças vendidas' : '')}
     ${kpi('Estoque', brl(estoque.custo), num(estoque.unidades) + ' peças a custo')}
   </div>
@@ -271,7 +271,7 @@ function fluxoMensalHTML(fluxo) {
 
     <p class="dica"><strong>Mês que já chegou mostra só o que entrou e saiu de verdade.</strong> Parcela ainda não
       recebida não compõe o resultado do mês — ela aparece em "ainda este mês", acima, e no quadro de previsão do
-      Financeiro. Os meses marcados com * são previsão: parcelas de cartão e de fiado com vencimento marcado, mais
+      Financeiro. Os meses marcados com * são previsão: parcelas de cartão e a prazo com vencimento marcado, mais
       despesas já lançadas e não pagas. Conta vencida e ainda em aberto aparece no mês atual, não no mês em que
       venceu. <strong>As despesas fixas dos meses à frente só entram depois de lançadas</strong> — enquanto você não
       usar "Repetir recorrentes" em <a href="#/despesas">Despesas</a>, a previsão de saída fica menor do que a

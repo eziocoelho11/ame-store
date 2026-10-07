@@ -44,7 +44,7 @@ function html() {
 
   return `
   <div class="grade grade-4 mb">
-    ${kpi('A receber', brl(r.total), `cartão ${brl(r.cartao)} · fiado ${brl(r.fiado)}`, 'destaque')}
+    ${kpi('A receber', brl(r.total), `cartão ${brl(r.cartao)} · a prazo ${brl(r.fiado)}`, 'destaque')}
     ${kpi('Vencido', brl(r.vencidos), r.nVencidos ? r.nVencidos + ' parcela(s)' : 'nada vencido')}
     ${kpi('Próximos 30 dias', brl(r.proximos30))}
     ${kpi('Saldo do período', brl(fluxo.saldo), `entrou ${brl(fluxo.entradas)} · saiu ${brl(fluxo.saidas)}`)}
@@ -112,7 +112,7 @@ function filtrosReceberHTML(mostrando, total) {
       <select data-f="tipo">
         ${opcao('', fReceber.tipo, 'Todos')}
         ${opcao('cartao', fReceber.tipo, 'Cartão')}
-        ${opcao('fiado', fReceber.tipo, 'Fiado')}
+        ${opcao('fiado', fReceber.tipo, 'A prazo')}
         ${opcao('outros', fReceber.tipo, 'Outros')}
       </select></div>
     ${filtrando ? '<button class="btn btn-p" data-acao="limpar-filtro-receber">Limpar filtro</button>' : ''}
@@ -275,7 +275,7 @@ function previsaoHTML(e, hoje) {
   return `<div class="cartao">
     <h3>Previsão de entrada por mês</h3>
     <div class="rolagem-x"><table>
-      <thead><tr><th>Mês</th><th class="dir">Cartão (R$)</th><th class="dir">Fiado (R$)</th>
+      <thead><tr><th>Mês</th><th class="dir">Cartão (R$)</th><th class="dir">A prazo (R$)</th>
         <th class="dir">Parcelas</th><th class="dir">Total (R$)</th></tr></thead>
       <tbody>${meses.map((m) => `<tr>
         <td>${esc(competenciaBR(m.comp))}
@@ -359,7 +359,7 @@ function devedoresHTML(e, hoje) {
     }
   }
   const todos = [...grupos.values()];
-  if (!todos.length) return vazio('pessoas', 'Ninguém devendo', 'Todo fiado e todo cartão já entraram.');
+  if (!todos.length) return vazio('pessoas', 'Ninguém devendo', 'Todo valor a prazo e todo cartão já entraram.');
 
   const t = normaliza(fDevedores.termo).trim();
   const lista = todos

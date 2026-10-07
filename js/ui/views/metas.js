@@ -8,7 +8,7 @@ import { brl, esc, iso, dataBR, competencia, competenciaBR, MESES } from '../../
 import { icone } from '../icones.js';
 import { barraMeta, liga, toast, tag, modalFormulario, confirmar, vista } from '../ui.js';
 
-const NOMES_TIPO = { loja: 'venda na loja', fiado: 'fiado', dinheiro: 'dinheiro',
+const NOMES_TIPO = { loja: 'venda na loja', fiado: 'a prazo', dinheiro: 'dinheiro',
   pix: 'PIX', debito: 'débito', credito: 'crédito' };
 
 export async function render(raiz) {
@@ -77,7 +77,7 @@ function cartaoDoMes(r) {
 
     ${veio ? `<div class="legenda"><span>Entrou de: ${veio}</span></div>` : ''}
     <p class="dica"><strong>A meta conta o dinheiro que entrou no mês.</strong> Venda à vista, PIX e cartão contam
-      quando caem; fiado conta quando a cliente paga, não quando a parcela vence. Parcela paga pela metade conta
+      quando caem; a prazo conta quando a cliente paga, não quando a parcela vence. Parcela paga pela metade conta
       só a metade que chegou.${r.aindaPodeEntrar ? ` Ainda pode entrar <strong>${brl(r.aindaPodeEntrar)}</strong>
       este mês, de parcelas que vencem agora e continuam em aberto.` : ''}</p>
   </div>`;

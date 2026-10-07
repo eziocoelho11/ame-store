@@ -36,7 +36,7 @@ function html(vendaId) {
   const cmv = v.totais.cmv + cmvTrocas;
   const margem = liquido - cmv;
 
-  const nomesForma = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado' };
+  const nomesForma = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'A prazo' };
 
   return `
   <div class="cartao">

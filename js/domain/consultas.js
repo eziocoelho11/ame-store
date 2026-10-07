@@ -421,7 +421,9 @@ export function metasDoAno(estado, ano) {
 }
 
 export function rotuloRecebivel(r) {
-  const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado',
+  // A chave e' o que esta' gravado no evento e NUNCA muda; o valor e' o que
+  // aparece na tela. 'fiado' passou a se chamar "A prazo" em 07/10/2026.
+  const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'A prazo',
     loja: 'Venda na loja' };
   const base = nomes[r.tipo] || r.tipo;
   const parc = r.totalParcelas > 1 ? ` ${r.parcela}/${r.totalParcelas}` : '';

@@ -10,7 +10,7 @@ import { irPara } from '../router.js';
 const ITENS = [
   ['/metas', 'raio', 'Metas', 'Meta de vendas do mês e provisões'],
   ['/vendas', 'recibo', 'Vendas', 'Histórico, devoluções e cancelamentos'],
-  ['/clientes', 'pessoas', 'Clientes', 'Cadastro, histórico e fiado'],
+  ['/clientes', 'pessoas', 'Clientes', 'Cadastro, histórico e vendas a prazo'],
   ['/despesas', 'documento', 'Despesas', 'O que sai, fixo e variável'],
   ['/dre', 'grafico', 'DRE', 'Resultado do mês e dos 12 meses'],
   ['/relatorios', 'filtro', 'Relatórios', 'Mais vendidos, curva ABC, giro'],

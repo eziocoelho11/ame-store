@@ -202,6 +202,22 @@ export function darEntrada(entrada) {
   });
 }
 
+/**
+ * Baixa de estoque para CONSUMO: a peca sai e ninguem paga por ela.
+ * consumo({itens:[{varianteId, qtd}], destinatario, motivo, data, obs})
+ * Nao gera recebivel nem receita — o que sai e' o custo da peca.
+ */
+export function baixarParaConsumo(consumo) {
+  return log.registrar('estoque.consumo', {
+    id: novoId(),
+    data: consumo.data || iso(),
+    itens: consumo.itens || [],
+    destinatario: (consumo.destinatario || '').trim(),
+    motivo: consumo.motivo || 'Uso próprio',
+    obs: consumo.obs || '',
+  });
+}
+
 /** Acerta o saldo para o valor contado. Motivo e' obrigatorio: estoque some por algum motivo. */
 export function ajustarEstoque(varianteId, qtdNova, motivo, data) {
   return log.registrar('estoque.ajuste', {

@@ -72,7 +72,7 @@ Busque pelo nome, pelo SKU ou pelo código de barras, toque na peça, ajuste a
 quantidade e toque em **Cobrar**.
 
 No pagamento, escolha as formas — dá para dividir a mesma venda entre dinheiro,
-PIX, cartão e fiado. Se digitar mais dinheiro do que o total, o app calcula o
+PIX, cartão e a prazo. Se digitar mais dinheiro do que o total, o app calcula o
 troco e não conta a diferença como receita.
 
 - **Dinheiro e PIX** entram no caixa na hora.
@@ -80,10 +80,10 @@ troco e não conta a diferença como receita.
   hoje), o valor inteiro entra no caixa já sem as taxas, mesmo a cliente pagando
   em 3×. Se não antecipa, viram parcelas a receber. A linha embaixo do valor diz
   exatamente quanto cai e quando.
-- **Fiado** exige um cliente selecionado na venda. Dá para parcelar em até 12×:
+- **A prazo** exige um cliente selecionado na venda. Dá para parcelar em até 12×:
   escolha o número de parcelas e a data do **1º vencimento** — as seguintes caem
   de mês em mês, no mesmo dia, sem juros e sem taxa. Cada parcela vira uma linha
-  em Financeiro › A receber e no saldo em fiado da cliente.
+  em Financeiro › A receber e no saldo a prazo da cliente.
 
 No alto da tela fica o **canal**, que responde *onde essa venda aconteceu*:
 
@@ -120,7 +120,7 @@ A peça que volta entra no estoque (desmarque a caixinha se voltou com defeito) 
 a peça nova sai do estoque, tudo no mesmo lançamento.
 
 **Diferença a favor da loja:** escolha como recebeu. Dinheiro e PIX entram no
-caixa na data da troca. Débito, crédito e fiado ficam **a receber** e aparecem em
+caixa na data da troca. Débito, crédito e a prazo ficam **a receber** e aparecem em
 Financeiro, com vencimento — em crédito, já com a taxa da maquininha descontada.
 
 **Diferença a favor da cliente** (ela levou peça mais barata): digite o valor com
@@ -211,6 +211,33 @@ passado: cada venda guarda como ela foi recebida no dia em que aconteceu, e o
 crédito parcelado de antes continua com as parcelas futuras que já tinha. Se
 quiser corrigir alguma delas à mão, use o lápis em Financeiro › A receber.
 
+### Baixa de estoque para consumo
+Peça que sai da loja sem ninguém pagar — você levou, virou brinde, foi para uma
+influencer divulgar, ou sumiu — se lança em **Estoque › Baixa para consumo**.
+
+Escolha as peças, diga **quem levou** (campo obrigatório, com a lista de clientes
+sugerida mas aceitando qualquer nome: você mesma, a loja, uma influencer), o
+motivo e a data.
+
+O que acontece:
+
+| | |
+|---|---|
+| Estoque | a peça sai |
+| A receber | **nada** — não gera cobrança nem parcela |
+| Receita e teto do MEI | **nada** — não é venda |
+| Resultado do mês | desconta o **custo** da peça |
+| Mais vendidos e giro | não conta: a peça não foi vendida |
+
+Na DRE isso aparece numa linha própria, **"Consumo, brindes e perdas"**, logo
+antes do resultado. É a diferença entre esta baixa e o ajuste de estoque: no
+ajuste a peça sai e o custo dela some sem deixar rastro, e a DRE segue mostrando
+um lucro que não houve. Aqui o custo fica registrado, com data e com nome.
+
+Na tela de Estoque, o quadro **"Saiu sem venda"** lista as últimas baixas, com
+destinatário, motivo e custo — é onde se responde "quem levou aquela peça" quando
+o saldo não bate com a arara.
+
 ### Despesas
 Lance tudo que sai: aluguel, energia, embalagem, marketing, pró-labore.
 Marque **fixa** (existe mesmo sem vender) ou **variável** (acompanha a venda) —
@@ -247,7 +274,7 @@ Serve para responder, sem sair da tela, a pergunta que importa ao lançar uma
 despesa de novembro: *o ano ainda fecha no azul?* É esse acumulado que a meta usa.
 
 Uma leitura que evita susto: **mês à frente quase não tem entrada prevista.** O
-app só conta como previsão o que já está contratado — parcela de cartão e de fiado
+app só conta como previsão o que já está contratado — parcela de cartão e a prazo
 com vencimento marcado. Venda que ainda não aconteceu não entra, de propósito.
 Então o saldo de um mês futuro aparece bem negativo: são as despesas contra um
 faturamento que ainda não existe. O número serve para comparar cenários de custo e
@@ -255,12 +282,12 @@ dimensionar a meta, não para prever o resultado. Quando isso acontece, o própr
 quadro avisa.
 
 ### Saldo a receber importado
-Fiado que nasceu **fora do app** — a planilha que a loja usava antes — entra como
+Venda a prazo que nasceu **fora do app** — a planilha que a loja usava antes — entra como
 *saldo a receber importado*: aparece em A receber, na previsão por mês e no saldo
-em fiado da cliente, mas **não vira venda**. É de propósito: a venda aconteceu
+a prazo da cliente, mas **não vira venda**. É de propósito: a venda aconteceu
 meses atrás, e registrá-la de novo criaria faturamento no mês do vencimento,
 falseando a DRE e o medidor do teto do MEI. Na lista, esses lançamentos aparecem
-como "Fiado — planilha ago/26" em vez de "Fiado — venda #12".
+como "A prazo — planilha ago/26" em vez de "A prazo — venda #12".
 
 Venda presencial antiga importada da planilha usa o mesmo caminho, com o
 rótulo **"Venda na loja"** e já baixada na data em que aconteceu — ela entrou
@@ -269,7 +296,7 @@ vira venda, porque a planilha guarda o valor e a descrição, não as peças, e
 sem peça não há custo: a DRE mostraria margem de 100%.
 
 ### Receber
-Em **Financeiro › A receber** ficam as parcelas de cartão e os fiados em aberto,
+Em **Financeiro › A receber** ficam as parcelas de cartão e as vendas a prazo em aberto,
 **agrupadas por mês de vencimento** — um quadro por mês, com o total do mês no
 cabeçalho. Quando o repasse da maquininha cair, selecione as parcelas e marque
 como recebidas.
@@ -281,8 +308,8 @@ março nunca mais é olhada. A data original continua na linha, para saber de
 quando é o atraso.
 
 A tabela **Previsão de entrada por mês**, no topo dessa aba, mostra quanto ainda
-tem para entrar em cada um dos próximos seis meses, separando cartão de fiado.
-É onde o fiado parcelado aparece antes de o mês chegar. Parcela vencida aparece
+tem para entrar em cada um dos próximos seis meses, separando cartão de a prazo.
+É onde a venda a prazo parcelada aparece antes de o mês chegar. Parcela vencida aparece
 no mês atual, porque é dinheiro que já deveria ter entrado. Previsão não é caixa:
 o valor só entra no fluxo de caixa quando a parcela é baixada. Essa tabela é
 sempre o total geral: ela não muda com o filtro.
@@ -292,7 +319,7 @@ As duas abas têm filtro em cima, e o filtro fica valendo enquanto a tela estive
 aberta.
 
 Em **A receber**: busca por cliente, origem ou nº da venda; **Situação** (todas,
-só vencidas, só a vencer); e **Tipo** (cartão, fiado, outros). Com filtro ligado,
+só vencidas, só a vencer); e **Tipo** (cartão, a prazo, outros). Com filtro ligado,
 uma linha abaixo diz quantas parcelas estão sendo mostradas do total.
 
 Em **Devedores**: busca por nome ou telefone; **Mostrar** (todos, só com parcelas
@@ -383,7 +410,7 @@ estreita o navegador separava o sinal de menos do número, e um `- 8.027,94`
 partido no meio é fácil de ler como se fosse positivo.
 
 O que entra na previsão é só o que **já está contratado**: parcela de cartão e
-de fiado com vencimento marcado, e despesa lançada e ainda não paga. Nada é
+a prazo com vencimento marcado, e despesa lançada e ainda não paga. Nada é
 estimado por semelhança com o mês passado — previsão inventada é pior do que
 previsão faltando, porque parece informação.
 
@@ -413,11 +440,11 @@ O mesmo cartão aparece no topo da tela inicial. Sem meta definida ele não
 aparece: meta é decisão sua, o app não inventa uma.
 
 **Como o realizado é contado:** venda à vista, no cartão e no PIX contam no mês
-em que a venda aconteceu; **fiado conta no mês em que cada parcela vence**. É a
-mesma regra da planilha antiga — e é o que evita um mês inflado, com o fiado
+em que a venda aconteceu; **a venda a prazo conta no mês em que cada parcela vence**. É a
+mesma regra da planilha antiga — e é o que evita um mês inflado, com a venda a prazo
 inteiro de uma venda, seguido de meses vazios.
 
-Nos meses que ainda não chegaram, o realizado já mostra o fiado **contratado**
+Nos meses que ainda não chegaram, o realizado já mostra o valor a prazo **contratado**
 para aquele mês. Por isso a diferença desses meses aparece em cinza, e não em
 vermelho: não é meta perdida, é meta em andamento.
 

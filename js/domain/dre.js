@@ -85,6 +85,16 @@ export function calcularDRE(estado, comp) {
   const cmvLiquido = cmv - cmvDevolvido + trocasCmv;
   const lucroBruto = receitaLiquida - cmvLiquido;
 
+  // Mercadoria que saiu sem venda: uso proprio, brinde, divulgacao, perda. Entra
+  // pelo CUSTO, no mes em que a peca saiu. Sem esta linha o estoque encolhe e a
+  // DRE nao percebe — sobra um lucro que nunca existiu.
+  let consumo = 0, nConsumos = 0;
+  for (const c of Object.values(estado.consumos || {})) {
+    if (!dentro(c.data)) continue;
+    consumo += c.custoTotal;
+    nConsumos++;
+  }
+
   // Despesas do mes, separadas por natureza.
   let fixas = 0, variaveis = 0;
   const porCategoria = {};
@@ -95,7 +105,7 @@ export function calcularDRE(estado, comp) {
     porCategoria[k] = (porCategoria[k] || 0) + d.valor;
   }
   const despesas = fixas + variaveis;
-  const resultado = lucroBruto - despesas;
+  const resultado = lucroBruto - despesas - consumo;
 
   const pct = (n) => (receitaBruta > 0 ? (n / receitaBruta) * 100 : null);
 
@@ -103,8 +113,9 @@ export function calcularDRE(estado, comp) {
   // Margem de contribuicao = o que sobra de cada real vendido depois de tudo
   // que varia junto com a venda (CMV, taxas, comissoes, despesas variaveis).
   const contribuicao = receitaBruta - devolucoes - taxasCartao - comissoes - cmvLiquido - variaveis;
+  // Consumo nao varia com a venda: pesa no ponto de equilibrio como custo fixo.
   const mcPct = receitaBruta > 0 ? contribuicao / receitaBruta : 0;
-  const pontoEquilibrio = mcPct > 0 ? Math.round((fixas + imposto) / mcPct) : null;
+  const pontoEquilibrio = mcPct > 0 ? Math.round((fixas + imposto + consumo) / mcPct) : null;
 
   return {
     competencia: comp,
@@ -118,6 +129,7 @@ export function calcularDRE(estado, comp) {
     trocasDiferenca, trocasCmv, nTrocas,
     receitaLiquida, cmv: cmvLiquido, lucroBruto,
     fixas, variaveis, despesas, porCategoria, resultado,
+    consumo, nConsumos,
     margemBruta: pct(lucroBruto), margemLiquida: pct(resultado),
     margemContribuicao: mcPct * 100, pontoEquilibrio,
     porCanal: Object.values(porCanal),

@@ -55,7 +55,7 @@ export function comprovanteVenda(estado, venda) {
     .filter((r) => r.vendaId === venda.id && r.status !== 'cancelado')
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
   const aPrazo = parcelas.filter((r) => emAberto(r));
-  const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'Fiado' };
+  const nomes = { dinheiro: 'Dinheiro', pix: 'PIX', debito: 'Débito', credito: 'Crédito', fiado: 'A prazo' };
 
   return `
   ${cabecalho(estado, 'Comprovante de venda', `Venda nº ${venda.numero} · ${dataBR(venda.data)}${venda.hora ? ' às ' + venda.hora : ''}`)}

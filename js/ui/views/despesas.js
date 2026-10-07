@@ -142,7 +142,7 @@ function reflexoHTML(e, comp, atual) {
         fecha < 0 ? '' : 'destaque')}
     </div>
     ${semEntrada ? `<p class="dica"><strong>${esc(competenciaBR(comp))} ainda não tem entrada prevista.</strong>
-      O app só conta como previsão o que já está contratado — parcela de cartão e de fiado com vencimento
+      O app só conta como previsão o que já está contratado — parcela de cartão e a prazo com vencimento
       marcado. Venda que ainda não aconteceu não entra, de propósito. Então o saldo deste mês aparece bem
       negativo: são as despesas contra um faturamento que ainda não existe. Serve para comparar cenários de
       custo e para dimensionar a meta, não para prever o resultado.</p>` : ''}

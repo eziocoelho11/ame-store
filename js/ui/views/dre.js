@@ -86,13 +86,15 @@ function mesHTML(e, d) {
         ${linhaDRE('<strong>Lucro bruto</strong>', d.lucroBruto, d, { classe: 'subtotal' })}
         ${linhaDRE('Despesas fixas', -d.fixas, d, { recuo: true, sinal: '-' })}
         ${linhaDRE('Despesas variáveis', -d.variaveis, d, { recuo: true, sinal: '-' })}
+        ${d.consumo ? linhaDRE('Consumo, brindes e perdas' + (d.nConsumos ? ` <span class="texto-3 pequeno">(${d.nConsumos})</span>` : ''),
+          -d.consumo, d, { recuo: true, sinal: '-' }) : ''}
         ${linhaDRE('<strong>Resultado do período</strong>', d.resultado, d, { classe: 'resultado' })}
       </tbody>
     </table>
     <p class="dica mt">
       <strong>Valores em R$.</strong>
       Regime de competência: a venda entra no mês em que aconteceu, mesmo que o dinheiro do cartão caia depois
-      ou que o fiado tenha sido parcelado em 6×. Parcelar não muda o resultado do mês — muda quando o dinheiro
+      ou que a venda a prazo tenha sido parcelada em 6×. Parcelar não muda o resultado do mês — muda quando o dinheiro
       entra. Para isso, veja o <a href="#/financeiro">Financeiro</a>.
     </p>
   </div>
@@ -216,7 +218,8 @@ function exportar() {
     ['Taxas de cartão', 'taxasCartao'],
     ['Comissões de canal', 'comissoes'], ['DAS-MEI', 'imposto'],
     ['Receita líquida', 'receitaLiquida'], ['CMV', 'cmv'], ['Lucro bruto', 'lucroBruto'],
-    ['Despesas fixas', 'fixas'], ['Despesas variáveis', 'variaveis'], ['Resultado', 'resultado'],
+    ['Despesas fixas', 'fixas'], ['Despesas variáveis', 'variaveis'],
+    ['Consumo, brindes e perdas', 'consumo'], ['Resultado', 'resultado'],
     ['Nº de vendas', 'nVendas'], ['Ticket médio', 'ticketMedio'],
   ];
   const csv = paraCSV(

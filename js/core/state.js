@@ -83,6 +83,7 @@ export function estadoInicial() {
     vendas: {},
     despesas: {},
     recebiveis: {},
+    consumos: {},
     impostos: {},
     provisoesFeitas: {},
     movimentos: [],
@@ -167,6 +168,7 @@ export function aplicar(e, ev) {
     // ---------- estoque ----------
     case 'estoque.entrada': entradaEstoque(e, ev, d); break;
     case 'estoque.ajuste': ajusteEstoque(e, ev, d); break;
+    case 'estoque.consumo': consumoEstoque(e, ev, d); break;
 
     // ---------- vendas ----------
     case 'venda.registrada': registrarVenda(e, ev, d); break;
@@ -435,6 +437,53 @@ function ajusteEstoque(e, ev, d) {
     custoUnit: v.custoMedio, saldoDepois: v.saldo, ref: d.id, refTipo: 'ajuste',
     obs: d.motivo || '',
   });
+}
+
+/**
+ * CONSUMO: a peca sai do estoque e ninguem paga por ela.
+ *
+ * Uso proprio, brinde, peca emprestada para divulgacao, amostra, perda. Nao e'
+ * venda: nao gera recebivel, nao entra como receita e nao conta para o teto do
+ * MEI. O que sai e' o CUSTO da peca, e e' por isso que este evento precisa
+ * existir separado do ajuste de estoque.
+ *
+ * No ajuste (`estoque.ajuste`) a peca sai e o custo dela evapora em silencio: a
+ * DRE segue mostrando um lucro que nao houve, porque mercadoria deixou a loja
+ * sem aparecer em lugar nenhum. Aqui o custo fica registrado, com data, e a DRE
+ * o deduz no mes em que a peca saiu.
+ *
+ * `destinatario` responde quem levou — e' o campo que transforma "sumiu uma
+ * blusa" em "a blusa foi com a fulana, em tal dia, para tal coisa".
+ */
+function consumoEstoque(e, ev, d) {
+  const itens = (d.itens || []).map((it) => {
+    const v = e.variantes[it.varianteId];
+    // Custo medio VIGENTE neste ponto do replay, igual a uma venda: nao se
+    // confia no custo que a tela mandou.
+    const custoUnit = v ? v.custoMedio : (it.custoUnit || 0);
+    return { varianteId: it.varianteId, qtd: it.qtd, custoUnit, custo: custoUnit * it.qtd };
+  });
+  const custoTotal = itens.reduce((soma, i) => soma + i.custo, 0);
+
+  e.consumos[d.id] = {
+    id: d.id, data: d.data, itens, custoTotal,
+    destinatario: d.destinatario || '', motivo: d.motivo || '', obs: d.obs || '',
+    deviceId: ev.deviceId,
+  };
+
+  for (const it of itens) {
+    const v = e.variantes[it.varianteId];
+    if (!v) continue;
+    v.saldo -= it.qtd;
+    e.movimentos.push({
+      id: d.id + '-' + it.varianteId, ts: ev.ts, data: d.data, varianteId: it.varianteId,
+      tipo: 'consumo', qtd: -it.qtd, custoUnit: it.custoUnit, saldoDepois: v.saldo,
+      ref: d.id, refTipo: 'consumo',
+      obs: [d.motivo, d.destinatario].filter(Boolean).join(' — '),
+    });
+  }
+  // `vendidoTotal` NAO sobe: a peca nao foi vendida, e inflar esse numero
+  // estragaria o giro e o relatorio de mais vendidos.
 }
 
 /**

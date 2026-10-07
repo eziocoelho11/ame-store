@@ -7,6 +7,8 @@ import { icone } from '../icones.js';
 import { kpi, vazio, liga, toast, modalFormulario, debounce, tag , vista } from '../ui.js';
 import { irPara } from '../router.js';
 import { abrirEntradaCompra } from './entrada.js';
+import { abrirConsumo } from '../consumo.js';
+import { dataBR } from '../../core/fmt.js';
 
 let filtro = { termo: '', categoria: '', situacao: '' };
 
@@ -47,9 +49,12 @@ function html() {
       baixo.length ? '' : '')}
   </div>
 
+  ${consumosHTML(e)}
+
   <div class="barra-botoes mb">
     <button class="btn btn-primario" data-acao="novo-produto">${icone('mais', 16)} Novo produto</button>
     <button class="btn" data-acao="entrada">${icone('baixar', 16)} Entrada de compra</button>
+    <button class="btn" data-acao="consumo">${icone('enviar', 16)} Baixa para consumo</button>
     <button class="btn" data-acao="etiquetas">${icone('etiqueta', 16)} Etiquetas</button>
     <button class="btn" data-acao="exportar">${icone('documento', 16)} Exportar</button>
   </div>
@@ -107,6 +112,46 @@ function cartaoProduto(e, produtoId, variantes) {
   </div>`;
 }
 
+/**
+ * As ultimas baixas para consumo. Fica na tela de estoque, e nao escondida num
+ * relatorio, porque a pergunta "quem levou aquela peca" aparece justamente
+ * quando se olha o saldo e ele nao bate com a arara.
+ */
+function consumosHTML(e) {
+  const lista = Object.values(e.consumos || {})
+    .sort((a, b) => (b.data + b.id).localeCompare(a.data + a.id))
+    .slice(0, 8);
+  if (!lista.length) return '';
+  const total = Object.values(e.consumos || {}).reduce((s, c) => s + c.custoTotal, 0);
+  return `<div class="cartao">
+    <div class="cartao-cabecalho">
+      <div class="crescer"><h3>Saiu sem venda</h3>
+        <div class="texto-2 pequeno">${Object.keys(e.consumos).length} baixa(s) · ${brl(total)} a custo, no total</div></div>
+    </div>
+    <div class="lista">${lista.map((c) => `
+      <div class="item" style="cursor:default">
+        <div class="avatar">${icone('enviar', 16)}</div>
+        <div class="corpo">
+          <div class="titulo">${esc(c.destinatario || 'sem destinatário')} ${tag(c.motivo, 'roxo')}</div>
+          <div class="sub">${dataBR(c.data)} · ${c.itens.map((i) => `${i.qtd}× ${esc(nomeDaVariante(e, i.varianteId))}`).join(', ')}
+            ${c.obs ? ' · ' + esc(c.obs) : ''}</div>
+        </div>
+        <div class="valor">${brl(c.custoTotal)}<small>a custo</small></div>
+      </div>`).join('')}</div>
+    <p class="dica">Peça que sai assim não gera cobrança nem receita: o custo dela é descontado do resultado
+      do mês, na linha "Consumo, brindes e perdas" da DRE.</p>
+  </div>`;
+}
+
+/** Rotulo da variante sem depender do produto ainda existir. */
+function nomeDaVariante(e, varianteId) {
+  const v = e.variantes[varianteId];
+  if (!v) return '(item removido)';
+  const p = e.produtos[v.produtoId];
+  const detalhe = [v.tamanho, v.cor].filter(Boolean).join(' / ');
+  return (p ? p.nome : '(produto removido)') + (detalhe ? ' — ' + detalhe : '');
+}
+
 function ligar(raiz, redesenhar) {
   const busca = raiz.querySelector('#busca-estoque');
   if (busca) {
@@ -121,6 +166,7 @@ function ligar(raiz, redesenhar) {
   liga(raiz, 'click', '[data-produto]', (ev, el) => irPara('/produto/' + el.dataset.produto));
   liga(raiz, 'click', '[data-acao="novo-produto"]', () => abrirNovoProduto());
   liga(raiz, 'click', '[data-acao="entrada"]', () => abrirEntradaCompra());
+  liga(raiz, 'click', '[data-acao="consumo"]', () => abrirConsumo());
   liga(raiz, 'click', '[data-acao="etiquetas"]', () => irPara('/etiquetas'));
   liga(raiz, 'click', '[data-acao="exportar"]', () => exportarEstoque());
 }

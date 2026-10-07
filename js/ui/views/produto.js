@@ -85,7 +85,7 @@ function html(produtoId) {
         const v = e.variantes[m.varianteId];
         const nomes = { entrada: 'Entrada', venda: 'Venda', 'ajuste+': 'Ajuste +', 'ajuste-': 'Ajuste −',
           devolucao: 'Devolução', cancelamento: 'Cancelamento',
-          'troca-entrada': 'Troca (voltou)', 'troca-saida': 'Troca (saiu)' };
+          'troca-entrada': 'Troca (voltou)', 'troca-saida': 'Troca (saiu)', consumo: 'Consumo' };
         return `<tr><td>${dataBR(m.data)}</td><td>${nomes[m.tipo] || m.tipo}</td>
         <td class="pequeno">${esc([v.tamanho, v.cor].filter(Boolean).join('/'))}</td>
         <td class="dir ${m.qtd < 0 ? 'negativo' : 'positivo'}">${m.qtd > 0 ? '+' : ''}${m.qtd}</td>

@@ -33,7 +33,7 @@ function html() {
   return `
   <div class="grade grade-3 mb">
     ${kpi('Clientes', String(todos.length))}
-    ${kpi('Em fiado', brl(fiadoTotal), comFiado ? comFiado + ' cliente(s) com saldo' : 'ninguém devendo')}
+    ${kpi('A prazo em aberto', brl(fiadoTotal), comFiado ? comFiado + ' cliente(s) com saldo' : 'ninguém devendo')}
     ${kpi('Ticket médio geral', brl(lista.length && lista.some((c) => c.nVendas)
       ? Math.round(lista.reduce((s, c) => s + c.total, 0) / Math.max(1, lista.reduce((s, c) => s + c.nVendas, 0)))
       : 0))}
@@ -50,13 +50,13 @@ function html() {
     <div class="item" data-cliente="${c.id}">
       <div class="avatar">${esc(iniciais(c.nome))}</div>
       <div class="corpo">
-        <div class="titulo">${esc(c.nome)} ${c.fiado > 0 ? tag('fiado ' + brl(c.fiado), 'alerta') : ''}</div>
+        <div class="titulo">${esc(c.nome)} ${c.fiado > 0 ? tag('a prazo ' + brl(c.fiado), 'alerta') : ''}</div>
         <div class="sub">${esc(c.telefone || 'sem telefone')}${c.ultima ? ' · última compra ' + dataBR(c.ultima) : ' · nunca comprou'}</div>
       </div>
       <div class="valor">${brl(c.total)}<small>${c.nVendas} compra(s)</small></div>
     </div>`).join('')}</div></div>`
     : vazio('pessoas', termo ? 'Nada encontrado' : 'Nenhum cliente cadastrado',
-      'Cadastrar cliente permite vender fiado, ver o histórico de compras e saber quem são as melhores clientes.',
+      'Cadastrar cliente permite vender a prazo, ver o histórico de compras e saber quem são as melhores clientes.',
       '<button class="btn btn-primario" data-acao="novo">Cadastrar cliente</button>')}`;
 }
 

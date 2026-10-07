@@ -18,7 +18,7 @@ const FORMAS = [
   { v: 'pix', t: 'PIX' },
   { v: 'debito', t: 'Débito' },
   { v: 'credito', t: 'Crédito' },
-  { v: 'fiado', t: 'Fiado' },
+  { v: 'fiado', t: 'A prazo' },
 ];
 const IMEDIATAS = ['dinheiro', 'pix'];
 const CARTAO = ['debito', 'credito'];
