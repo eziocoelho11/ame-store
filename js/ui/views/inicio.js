@@ -76,7 +76,7 @@ function html() {
     ${kpi('Resultado do mês', brl(resultadoCaixa),
       `caixa · entrou ${brl(entradasDoMes)} · saiu ${brl(saidasDoMes)}`,
       '')}
-    ${kpi('Hoje', brl(receitaHoje), `${vendasHoje.length} ${vendasHoje.length === 1 ? 'venda' : 'vendas'}`)}
+    ${kpi('Vendeu hoje', brl(receitaHoje), `${vendasHoje.length} ${vendasHoje.length === 1 ? 'venda' : 'vendas'}`)}
     ${kpi('A receber', brl(receber.total),
       receber.nVencidos ? `<span class="negativo">${receber.nVencidos} vencido(s): ${brl(receber.vencidos)}</span>`
         : `cartão ${brl(receber.cartao)} · a prazo ${brl(receber.fiado)}`)}
