@@ -199,6 +199,23 @@ export function darEntrada(entrada) {
     documento: entrada.documento || '',
     freteTotal: entrada.freteTotal || 0,
     obs: entrada.obs || '',
+    // Como a compra foi paga. Ausente = a' vista no dia da entrada, que e' como
+    // o app se comportava antes de este campo existir.
+    pagamento: entrada.pagamento || null,
+  });
+}
+
+/**
+ * Corrige a forma de pagamento de uma compra ja' lancada.
+ * pagamento = { forma: 'avista' | 'credito', parcelas, primeiroVencimento }
+ * Nao mexe em estoque nem em custo: so' redistribui a saida de caixa.
+ */
+export function editarPagamentoCompra(compraId, pagamento) {
+  return log.registrar('compra.pagamento', {
+    compraId,
+    forma: pagamento.forma || 'avista',
+    parcelas: pagamento.parcelas || 1,
+    primeiroVencimento: pagamento.primeiroVencimento || null,
   });
 }
 

@@ -211,6 +211,35 @@ passado: cada venda guarda como ela foi recebida no dia em que aconteceu, e o
 crédito parcelado de antes continua com as parcelas futuras que já tinha. Se
 quiser corrigir alguma delas à mão, use o lápis em Financeiro › A receber.
 
+### Como a compra foi paga
+Na **Entrada de compra**, além dos itens, diga **como pagou**: à vista (PIX,
+dinheiro, débito) ou **cartão de crédito parcelado**, com o número de parcelas e
+a data em que a 1ª cai. As seguintes caem de mês em mês, no mesmo dia.
+
+Isso existe porque as duas coisas são diferentes: a **mercadoria chega hoje**, o
+**dinheiro sai depois**. Sem informar, o app debitava a nota inteira no dia da
+entrada — o mês da compra afundava e os seguintes ficavam leves demais.
+
+| | |
+|---|---|
+| Estoque e custo médio | não mudam: a peça entra toda no dia da entrada |
+| DRE | não muda: compra vira CMV quando a peça é vendida |
+| Fluxo de caixa | a saída se divide nas datas das parcelas |
+| Resultado do mês e acumulado | deixam de levar o tranco todo num mês só |
+
+Juros de cartão **não entram** no valor das parcelas: elas dividem o valor da
+nota. Juro não é custo da mercadoria, e somá-lo contaminaria o custo médio e a
+margem de todas as peças daquela compra.
+
+#### Corrigir uma compra já lançada
+Em **Estoque**, o quadro **"Compras e como foram pagas"** lista todas as compras
+com a condição de cada uma. O botão **Pagamento** na linha abre a correção.
+
+Compra lançada antes deste campo existir aparece como *"à vista (não informado)"*,
+e um aviso no topo do quadro diz quantas estão assim — são as que valem revisar.
+Corrigir **não mexe em estoque, custo nem DRE**: só muda a data em que o dinheiro
+sai do caixa.
+
 ### Baixa de estoque para consumo
 Peça que sai da loja sem ninguém pagar — você levou, virou brinde, foi para uma
 influencer divulgar, ou sumiu — se lança em **Estoque › Baixa para consumo**.

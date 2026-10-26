@@ -205,13 +205,22 @@ export function fluxoCaixa(estado, de, ate) {
     d.saidas += im.valor;
     d.itens.push({ tipo: 'saida', desc: im.tipo + ' ' + im.competencia, valor: im.valor });
   }
-  // Compras de mercadoria saem do caixa no dia da entrada.
-  for (const m of estado.movimentos) {
-    if (m.tipo !== 'entrada' || m.data < de || m.data > ate) continue;
-    const d = toca(m.data);
-    const valor = m.qtd * m.custoUnit;
-    d.saidas += valor;
-    d.itens.push({ tipo: 'saida', desc: 'Compra de mercadoria', valor });
+  // Compra de mercadoria sai do caixa QUANDO E' PAGA, e nao quando a peca
+  // chega. Comprada a' vista, e' uma saida no dia da entrada; parcelada no
+  // cartao, sao N saidas nos vencimentos. Compra lancada antes de existir forma
+  // de pagamento tem uma parcela so', na data da entrada — igual a antes.
+  for (const c of Object.values(estado.compras || {})) {
+    for (const parc of c.parcelas) {
+      if (parc.vencimento < de || parc.vencimento > ate) continue;
+      const d = toca(parc.vencimento);
+      d.saidas += parc.valor;
+      const quantas = parc.de > 1 ? ` ${parc.n}/${parc.de}` : '';
+      d.itens.push({
+        tipo: 'saida',
+        desc: 'Compra de mercadoria' + quantas + (c.documento ? ' — ' + c.documento : ''),
+        valor: parc.valor,
+      });
+    }
   }
 
   const lista = Object.values(dias).sort((a, b) => a.data.localeCompare(b.data));
@@ -299,11 +308,16 @@ export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, 
     if (!m) continue;
     if (im.pago) m.saidas += im.valor; else m.saidasPrevistas += im.valor;
   }
-  // Compra de mercadoria sai do caixa no dia da entrada no estoque.
-  for (const mov of estado.movimentos) {
-    if (mov.tipo !== 'entrada') continue;
-    const m = balde(mov.data);
-    if (m) m.saidas += mov.qtd * mov.custoUnit;
+  // Compra de mercadoria sai no vencimento de cada parcela, nao no dia em que a
+  // peca chegou. Parcela que ainda nao venceu e' PREVISAO, como toda conta em
+  // aberto: entra no mes futuro, nao no realizado.
+  for (const c of Object.values(estado.compras || {})) {
+    for (const parc of c.parcelas) {
+      const venceu = parc.vencimento <= hoje;
+      const m = venceu ? balde(parc.vencimento) : baldePendente(parc.vencimento);
+      if (!m) continue;
+      if (venceu) m.saidas += parc.valor; else m.saidasPrevistas += parc.valor;
+    }
   }
 
   const lista = [...meses.values()].sort((a, b) => a.comp.localeCompare(b.comp));

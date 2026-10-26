@@ -84,6 +84,7 @@ export function estadoInicial() {
     despesas: {},
     recebiveis: {},
     consumos: {},
+    compras: {},
     impostos: {},
     provisoesFeitas: {},
     movimentos: [],
@@ -169,6 +170,7 @@ export function aplicar(e, ev) {
     case 'estoque.entrada': entradaEstoque(e, ev, d); break;
     case 'estoque.ajuste': ajusteEstoque(e, ev, d); break;
     case 'estoque.consumo': consumoEstoque(e, ev, d); break;
+    case 'compra.pagamento': pagamentoDaCompra(e, ev, d); break;
 
     // ---------- vendas ----------
     case 'venda.registrada': registrarVenda(e, ev, d); break;
@@ -421,6 +423,72 @@ function entradaEstoque(e, ev, d) {
       ref: d.id, refTipo: 'compra', obs: d.documento || '',
     });
   }
+
+  // Depois dos movimentos: o valor da compra sai deles, ja' com o frete
+  // rateado, que e' exatamente o que o fluxo de caixa debitava antes.
+  registrarCompra(e, d, d.pagamento);
+}
+
+/**
+ * Como a compra foi PAGA — que nao e' a mesma coisa que quando a mercadoria
+ * chegou. No Bras se compra a' vista do fornecedor e se parcela no cartao: a
+ * peca entra hoje, o dinheiro sai em tres vezes.
+ *
+ * Sem isto o fluxo de caixa debitava a nota inteira no dia da entrada: o mes da
+ * compra afundava e os seguintes ficavam leves demais. A DRE nunca dependeu
+ * disto (compra vira CMV quando a peca vende), e continua sem depender.
+ *
+ * Parcela igual, pelo valor da NOTA. Juro de cartao nao entra aqui de proposito:
+ * ele nao e' custo da mercadoria, e somar juro ao custo contaminaria o custo
+ * medio e a margem de toda peca daquela compra.
+ */
+function parcelasDaCompra(valorTotal, pagamento, dataEntrada) {
+  const forma = (pagamento && pagamento.forma) || 'avista';
+  if (forma !== 'credito') {
+    return [{ n: 1, de: 1, valor: valorTotal, vencimento: dataEntrada }];
+  }
+  const n = Math.max(1, pagamento.parcelas || 1);
+  const primeira = pagamento.primeiroVencimento || somaDias(dataEntrada, 30);
+  return dividirCentavos(valorTotal, n).map((valor, i) => ({
+    n: i + 1, de: n, valor, vencimento: somaMesesData(primeira, i),
+  }));
+}
+
+/** Monta (ou refaz) o registro da compra a partir dos movimentos dela. */
+function registrarCompra(e, d, pagamento) {
+  // O valor e' o mesmo que o fluxo debitava antes: itens ja' com o frete
+  // rateado. Assim entrada antiga, sem pagamento informado, continua saindo
+  // exatamente como saia — uma parcela so', no dia da entrada.
+  const custoUnitReal = {};
+  for (const m of e.movimentos) {
+    if (m.ref !== d.id || m.refTipo !== 'compra') continue;
+    custoUnitReal[m.varianteId] = (custoUnitReal[m.varianteId] || 0) + m.qtd * m.custoUnit;
+  }
+  const valorTotal = Object.values(custoUnitReal).reduce((soma, v) => soma + v, 0);
+  const forma = (pagamento && pagamento.forma) || 'avista';
+  e.compras[d.id] = {
+    id: d.id, data: d.data, documento: d.documento || '', obs: d.obs || '',
+    fornecedorId: d.fornecedorId || null,
+    valorTotal, freteTotal: d.freteTotal || 0,
+    nItens: (d.itens || []).reduce((soma, it) => soma + it.qtd, 0),
+    forma,
+    parcelas: parcelasDaCompra(valorTotal, pagamento, d.data),
+    pagamentoInformado: !!(pagamento && pagamento.forma),
+  };
+}
+
+/**
+ * Corrige a forma de pagamento de uma compra JA' lancada. Nao mexe em estoque
+ * nem em custo: so' redistribui a saida de caixa nas datas certas. E' o que
+ * permite acertar as compras do ano que entraram como se fossem a' vista.
+ */
+function pagamentoDaCompra(e, ev, d) {
+  const c = e.compras[d.compraId];
+  if (!c) return;
+  c.forma = d.forma || 'avista';
+  c.parcelas = parcelasDaCompra(c.valorTotal, d, c.data);
+  c.pagamentoInformado = true;
+  c.pagamentoEditadoEm = ev.ts;
 }
 
 function ajusteEstoque(e, ev, d) {

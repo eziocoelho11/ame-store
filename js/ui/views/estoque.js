@@ -49,6 +49,8 @@ function html() {
       baixo.length ? '' : '')}
   </div>
 
+  ${comprasHTML(e)}
+
   ${consumosHTML(e)}
 
   <div class="barra-botoes mb">
@@ -113,6 +115,48 @@ function cartaoProduto(e, produtoId, variantes) {
 }
 
 /**
+ * As compras lancadas e COMO cada uma foi paga.
+ *
+ * Existe por um motivo so': compra parcelada no cartao lancada como a' vista
+ * afunda o mes da compra e deixa os seguintes leves demais. Compra antiga, de
+ * antes de existir forma de pagamento, vem marcada "à vista" — e e' justamente
+ * a que precisa ser revista. Por isso ela aparece destacada.
+ */
+function comprasHTML(e) {
+  const lista = Object.values(e.compras || {})
+    .sort((a, b) => (b.data + b.id).localeCompare(a.data + a.id));
+  if (!lista.length) return '';
+  const aRever = lista.filter((c) => !c.pagamentoInformado).length;
+  return `<div class="cartao">
+    <div class="cartao-cabecalho">
+      <div class="crescer"><h3>Compras e como foram pagas</h3>
+        <div class="texto-2 pequeno">${lista.length} compra(s) · valores em R$</div></div>
+    </div>
+    ${aRever ? `<div class="aviso aviso-alerta">${icone('alerta')}<div>
+      <strong>${aRever} compra(s) sem forma de pagamento informada.</strong>
+      Elas contam como pagas à vista no dia da entrada. Se alguma foi parcelada no cartão, use
+      <strong>Pagamento</strong> na linha dela — o estoque e o custo não mudam, só a data em que o
+      dinheiro sai do caixa.</div></div>` : ''}
+    <div class="rolagem-x"><table>
+      <thead><tr><th>Data</th><th>Nota / fornecedor</th><th class="dir">Peças</th>
+        <th class="dir">Valor</th><th>Pagamento</th><th></th></tr></thead>
+      <tbody>${lista.map((c) => `<tr>
+        <td>${dataBR(c.data)}</td>
+        <td>${esc(c.documento || c.obs || '—')}</td>
+        <td class="dir num">${c.nItens}</td>
+        <td class="dir num">${brl(c.valorTotal)}</td>
+        <td>${c.forma === 'credito'
+          ? tag(c.parcelas.length + '× no crédito', 'roxo') + `<br><span class="texto-3 pequeno">1ª em ${dataBR(c.parcelas[0].vencimento)}</span>`
+          : (c.pagamentoInformado ? 'À vista' : `<span class="texto-3">à vista (não informado)</span>`)}</td>
+        <td class="dir"><button class="btn btn-p" data-pagto="${esc(c.id)}">Pagamento</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <p class="dica">Mudar aqui <strong>não mexe no estoque nem no custo da peça</strong>: só redistribui a
+      saída no fluxo de caixa. A DRE também não muda — compra vira CMV quando a peça é vendida.</p>
+  </div>`;
+}
+
+/**
  * As ultimas baixas para consumo. Fica na tela de estoque, e nao escondida num
  * relatorio, porque a pergunta "quem levou aquela peca" aparece justamente
  * quando se olha o saldo e ele nao bate com a arara.
@@ -167,6 +211,40 @@ function ligar(raiz, redesenhar) {
   liga(raiz, 'click', '[data-acao="novo-produto"]', () => abrirNovoProduto());
   liga(raiz, 'click', '[data-acao="entrada"]', () => abrirEntradaCompra());
   liga(raiz, 'click', '[data-acao="consumo"]', () => abrirConsumo());
+
+  liga(raiz, 'click', '[data-pagto]', (ev, el) => {
+    const c = log.estado().compras[el.dataset.pagto];
+    if (!c) return;
+    const m = modalFormulario({
+      titulo: 'Como esta compra foi paga',
+      valores: {
+        forma: c.forma,
+        parcelas: c.parcelas.length,
+        primeiroVencimento: c.parcelas[0] ? c.parcelas[0].vencimento : c.data,
+      },
+      campos: [
+        { nome: 'forma', rotulo: 'Forma', tipo: 'select',
+          opcoes: [{ v: 'avista', t: 'À vista (PIX, dinheiro, débito)' },
+            { v: 'credito', t: 'Cartão de crédito parcelado' }] },
+        { nome: 'parcelas', rotulo: 'Parcelas', tipo: 'select', meia: true,
+          opcoes: Array.from({ length: 12 }, (_, k) => ({ v: String(k + 1), t: (k + 1) + 'x' })) },
+        { nome: 'primeiroVencimento', rotulo: '1ª parcela em', tipo: 'data', meia: true,
+          dica: 'As seguintes caem de mês em mês, no mesmo dia.' },
+      ],
+      extras: `<p class="dica"><strong>${esc(c.documento || dataBR(c.data))} · ${brl(c.valorTotal)}.</strong>
+        Isto muda só a data em que o dinheiro sai do caixa. Estoque, custo médio e DRE ficam como estão.</p>`,
+      aoSalvar: async (d, fechar) => {
+        await acoes.editarPagamentoCompra(c.id, {
+          forma: d.forma,
+          parcelas: Number(d.parcelas) || 1,
+          primeiroVencimento: d.forma === 'credito' ? d.primeiroVencimento : null,
+        });
+        fechar();
+        toast('Pagamento da compra atualizado.', 'ok');
+      },
+    });
+    void m;
+  });
   liga(raiz, 'click', '[data-acao="etiquetas"]', () => irPara('/etiquetas'));
   liga(raiz, 'click', '[data-acao="exportar"]', () => exportarEstoque());
 }

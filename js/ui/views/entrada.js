@@ -4,7 +4,7 @@
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
 import { listarVariantes } from '../../domain/consultas.js';
-import { brl, esc, iso, normaliza, paraCentavos } from '../../core/fmt.js';
+import { brl, esc, iso, normaliza, paraCentavos, somaDias, somaMesesData, dataBR, dividirCentavos } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { abrirModal, toast, liga, debounce , vista } from '../ui.js';
 
@@ -37,6 +37,20 @@ export function abrirEntradaCompra(varianteInicial) {
         <div class="dica">Rateado no custo das peças.</div></div>
     </div>
 
+    <div class="linha">
+      <div class="campo-grupo"><label for="e-forma">Como pagou</label>
+        <select id="e-forma">
+          <option value="avista">À vista (PIX, dinheiro, débito)</option>
+          <option value="credito">Cartão de crédito parcelado</option>
+        </select></div>
+      <div class="campo-grupo" id="e-parcelas-caixa" hidden><label for="e-parcelas">Parcelas</label>
+        <select id="e-parcelas">${Array.from({ length: 12 }, (_, k) => k + 1)
+          .map((n) => `<option value="${n}">${n}x</option>`).join('')}</select></div>
+      <div class="campo-grupo" id="e-venc-caixa" hidden><label for="e-venc">1ª parcela em</label>
+        <input id="e-venc" type="date" value="${somaDias(iso(), 30)}"></div>
+    </div>
+    <p class="dica" id="e-aviso-pagto"></p>
+
     <div class="busca mt">${icone('busca')}
       <input id="e-busca" placeholder="Buscar peça para adicionar (nome, tamanho, SKU)" autocomplete="off">
     </div>
@@ -67,6 +81,11 @@ export function abrirEntradaCompra(varianteInicial) {
             fornecedorId: null,
             obs: raiz.querySelector('#e-forn').value,
             freteTotal: paraCentavos(raiz.querySelector('#e-frete').value),
+            pagamento: {
+              forma: raiz.querySelector('#e-forma').value,
+              parcelas: Number(raiz.querySelector('#e-parcelas').value) || 1,
+              primeiroVencimento: raiz.querySelector('#e-venc').value || null,
+            },
             itens: validos.map((i) => ({ varianteId: i.varianteId, qtd: i.qtd, custoUnit: i.custoUnit })),
           });
           fechar();
@@ -82,10 +101,40 @@ export function abrirEntradaCompra(varianteInicial) {
   const elSug = raiz.querySelector('#e-sugestoes');
   const elTotal = raiz.querySelector('#e-total');
 
+  /**
+   * Diz em palavras quando o dinheiro vai sair. A peca entra hoje; o caixa
+   * sente depois. Sem esta frase, parcelar vira um numero que ninguem confere.
+   */
+  function pintarPagamento(total) {
+    const credito = raiz.querySelector('#e-forma').value === 'credito';
+    raiz.querySelector('#e-parcelas-caixa').hidden = !credito;
+    raiz.querySelector('#e-venc-caixa').hidden = !credito;
+    const aviso = raiz.querySelector('#e-aviso-pagto');
+    if (!credito) {
+      aviso.innerHTML = `Sai <strong>${brl(total)}</strong> do caixa em `
+        + `${dataBR(raiz.querySelector('#e-data').value || iso())}.`;
+      return;
+    }
+    const n = Number(raiz.querySelector('#e-parcelas').value) || 1;
+    const base = raiz.querySelector('#e-venc').value || somaDias(iso(), 30);
+    const valores = dividirCentavos(total, n);
+    const datas = n <= 3
+      ? valores.map((v, i) => dataBR(somaMesesData(base, i))).join(' · ')
+      : `${dataBR(base)} · … · ${dataBR(somaMesesData(base, n - 1))}`;
+    aviso.innerHTML = `A mercadoria entra no estoque hoje; o caixa sente depois: `
+      + `<strong>${n}× de ${brl(valores[0])}</strong>, a partir de ${datas}.`
+      + ` <span class="texto-3">A DRE não muda — compra vira CMV quando a peça vende.</span>`;
+  }
+
+  for (const id of ['#e-forma', '#e-parcelas', '#e-venc', '#e-data']) {
+    raiz.querySelector(id).addEventListener('change', () => desenharItens());
+  }
+
   function desenharItens() {
     if (!itens.length) {
       elItens.innerHTML = '<p class="texto-3 pequeno">Nenhuma peça adicionada ainda.</p>';
       elTotal.innerHTML = '';
+      pintarPagamento(0);
       return;
     }
     elItens.innerHTML = `<div class="rolagem-x"><table>
@@ -106,6 +155,9 @@ export function abrirEntradaCompra(varianteInicial) {
       <div class="rotulo-kpi">Total da compra</div>
       <div class="valor-kpi">${brl(total + frete)}</div>
       <div class="nota-kpi">${pecas} peças · mercadoria ${brl(total)}${frete ? ' + frete ' + brl(frete) : ''}</div></div>`;
+    // O que sai do caixa e' a nota inteira, frete incluso — e' o mesmo valor que
+    // o fluxo debita.
+    pintarPagamento(total + frete);
   }
 
   function desenharSugestoes(termo) {
