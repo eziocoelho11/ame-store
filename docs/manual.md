@@ -465,7 +465,9 @@ já foi** e **o que falta** — e quando a meta é batida o cartão inteiro muda
 cor, ganha o selo "Meta batida!" e a barra fica verde. Dá para ver do outro lado
 da loja, sem ler número.
 
-O mesmo cartão aparece no topo da tela inicial. Sem meta definida ele não
+O mesmo cartão aparece na tela inicial, logo abaixo do faturamento do mês. Lá
+ele não fica verde inteiro: quem dá a notícia é o próprio faturamento, que fica
+verde e ganha o selo "Meta batida!" ao lado. Sem meta definida o cartão não
 aparece: meta é decisão sua, o app não inventa uma.
 
 **Como o realizado é contado:** venda à vista, no cartão e no PIX contam no mês

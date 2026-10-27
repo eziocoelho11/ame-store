@@ -642,3 +642,120 @@ body.imprimindo .folha { display: block; }
 }
 .etiqueta-print .nome-e { font-weight: 650; font-size: 8.5pt; margin-bottom: 1mm; }
 .etiqueta-print .preco-e { font-weight: 700; font-size: 11pt; margin-top: 1mm; }
+
+/* ================================================================
+   LINGUAGEM VISUAL — 26/10/2026
+   Portada da proposta que o Ézio aprovou (as maquetes em docs/proposta-*.html,
+   fora do repositório). Mexe em tipografia, hierarquia e uso de cor; não mexe
+   em marcação nem em lógica de tela. Por isso vem no fim da folha: sobrescreve
+   por ordem de origem, e some inteira se for preciso voltar atrás.
+   ================================================================ */
+
+:root {
+  /* Escala com saltos de verdade: é dela que vem a hierarquia. */
+  --t-heroi: 2.75rem;     /* cabe R$ 123.456,00 em 390px sem quebrar */
+  --t-destaque: 1.5rem;
+  --t-rotulo: .8125rem;
+  --t-mini: .75rem;
+}
+
+/* ---- rótulos param de gritar -------------------------------------
+   Caixa alta com entreletra larga em micro-rótulo é o tique mais comum de
+   tela gerada: ocupa mais, lê pior e não acrescenta nada. */
+.kpi .rotulo-kpi,
+.meta-numeros .rotulo {
+  text-transform: none; letter-spacing: 0;
+  font-size: var(--t-mini); font-weight: 500; color: var(--texto-3);
+}
+th, .folha-rotulo {
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+}
+
+/* ---- números maiores, títulos em serifa --------------------------
+   A serifa já era da marca (a logo e o nome no topo). Trazê-la para os
+   títulos de seção costura a tela com a identidade da loja. */
+.kpi .valor-kpi { font-size: var(--t-destaque); }
+.cartao > h2, .cartao > h3,
+.cartao-cabecalho h2, .cartao-cabecalho h3 {
+  font-family: var(--serif); font-weight: 400; font-size: 1.0625rem;
+  letter-spacing: .005em;
+}
+
+/* ---- o herói: um bloco, não mais um cartão entre outros ----------
+   Ele atravessa a grade inteira e perde a moldura. O número é o desenho:
+   sem sombra e sem borda, nada compete com ele. */
+.kpi.destaque {
+  grid-column: 1 / -1;
+  background: var(--roxo-suave); border-color: transparent;
+  padding: 1.35rem 1.15rem 1.2rem;
+}
+.kpi.destaque .rotulo-kpi {
+  color: var(--roxo); font-weight: 600; font-size: var(--t-rotulo);
+}
+.kpi.destaque .valor-kpi {
+  font-family: var(--serif); font-weight: 400;
+  font-size: var(--t-heroi); line-height: 1; letter-spacing: -.02em;
+  margin: .35rem 0 .45rem;
+}
+.kpi.destaque .nota-kpi { font-size: var(--t-rotulo); color: var(--texto-2); }
+.kpi.destaque .nota-kpi b { color: var(--texto); font-weight: 600; }
+/* Meta batida: a cor vai para o NÚMERO, não para o fundo. Fundo verde num
+   bloco desta largura pesa demais e rouba a cena do próprio valor. */
+.kpi.destaque.batida .valor-kpi { color: var(--verde); }
+.heroi-topo { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+
+/* ---- aviso: régua na borda em vez de caixa tingida ---------------
+   Numa tela com vários avisos, caixa colorida vira mancha e para de chamar
+   atenção. A régua à esquerda mantém o alerta visível sem tingir tudo. */
+.aviso {
+  background: var(--superficie);
+  border: 1px solid var(--borda); border-left: 3px solid var(--texto-3);
+  color: var(--texto-2);
+}
+.aviso strong { color: var(--texto); }
+.aviso-alerta { border-left-color: var(--ambar); }
+.aviso-alerta strong { color: var(--ambar); }
+.aviso-erro { border-left-color: var(--vermelho); }
+.aviso-erro strong { color: var(--vermelho); }
+.aviso-info { border-left-color: var(--azul); }
+.aviso-info strong { color: var(--azul); }
+.aviso-ok { border-left-color: var(--verde); }
+.aviso-ok strong { color: var(--verde); }
+
+/* ---- barra de baixo: pílula atrás do ícone -----------------------
+   Tratamento escolhido por ele no teste de 26/10, entre cinco. A forma carrega
+   o recado sozinha: quem não distingue bem a cor continua sabendo onde está
+   (WCAG 1.4.1), e no sol da vitrine a pílula sobrevive melhor que o tom.
+   A pílula é UM elemento que desliza, não um fundo por item: dois fundos
+   acendendo ao mesmo tempo fariam a seleção piscar no meio do caminho. */
+.nav-inferior { overflow: hidden; }
+.nav-desliza {
+  position: absolute; top: 9px; height: 30px; width: 54px; border-radius: 999px;
+  background: var(--roxo-claro); pointer-events: none; z-index: 0;
+  transition: transform .42s cubic-bezier(.22, .61, .36, 1);
+}
+.nav-inferior a { position: relative; z-index: 1; }
+.nav-inferior a > span {
+  display: grid; place-items: center; width: 54px; height: 30px;
+}
+.nav-inferior a.ativo { font-weight: 650; }
+.nav-inferior a, .nav-inferior a svg { transition: color .42s ease; }
+@media (prefers-reduced-motion: reduce) { .nav-desliza { transition: none; } }
+
+/* Meta batida NA TELA INICIAL: cartão branco com título e números verdes. Com
+   o selo agora no herói, pintar o cartão inteiro de verde dava dois avisos para
+   o mesmo fato e a tela ficava com duas áreas brigando pela atenção. Na tela
+   Metas o cartão continua verde inteiro: lá não há herói para dar o recado. */
+.cartao.no-inicio.meta-batida { background: var(--superficie); border-color: var(--borda); }
+.cartao.no-inicio.meta-batida .cartao-cabecalho h3 { color: var(--verde); }
+
+/* Pares do mês sem moldura: a informação é o número e o rótulo, e cada caixa
+   em volta cobra uma borda, uma sombra e um respiro que não dizem nada. Sem
+   elas, o herói fica sendo o único bloco com fundo na tela — que é o ponto. */
+.kpi { background: none; border-color: transparent; padding: .1rem .15rem; }
+.kpi.destaque { padding: 1.35rem 1.15rem 1.2rem; }
+.grade-3 { gap: 1.1rem .9rem; }
+
+/* Duas colunas em 375px espremem lista com nome de peça: "Blusa Polo Canelada
+   — Único / Nude" virava três linhas. No celular, uma coluna. */
+@media (max-width: 560px) { .grade-2 { grid-template-columns: 1fr; } }

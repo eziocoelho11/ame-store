@@ -1,6 +1,7 @@
 // inicio.js — o painel. Responde em 5 segundos: vendi quanto, sobrou quanto,
 // tenho quanto para receber, e falta comprar o que.
 import * as log from '../../core/eventlog.js';
+import { nomeVariante } from '../../core/state.js';
 import { calcularDRE, faturamento12Meses } from '../../domain/dre.js';
 import { aReceber, estoqueBaixo, valorEstoque, vendasDoMes, receitaPorDia, fluxoCaixaMensal,
   resumoMeta } from '../../domain/consultas.js';
@@ -68,11 +69,16 @@ function html() {
   return `
   ${avisos(e, dre, receber, hoje)}
 
-  ${metaHTML(meta)}
-
   <div class="grade grade-3 mb">
-    ${kpi('Faturamento do mês', brl(dre.receitaBruta),
-      `${dre.nVendas} ${dre.nVendas === 1 ? 'venda' : 'vendas'} · ${competenciaBR(comp)}`, 'destaque')}
+    <div class="kpi destaque ${meta.batida ? 'batida' : ''}">
+      <div class="heroi-topo">
+        <div class="rotulo-kpi">Faturamento de ${esc(mesPorExtenso(comp))}</div>
+        ${meta.batida ? `<span class="selo-meta pulsa">${icone('check', 14)} Meta batida!</span>` : ''}
+      </div>
+      <div class="valor-kpi">${brl(dre.receitaBruta)}</div>
+      <div class="nota-kpi">${dre.nVendas} ${dre.nVendas === 1 ? 'venda' : 'vendas'}${
+        dre.ticketMedio ? `, ticket de <b>${brl(dre.ticketMedio)}</b>` : ''}</div>
+    </div>
     ${kpi('Resultado do mês', brl(resultadoCaixa),
       `caixa · entrou ${brl(entradasDoMes)} · saiu ${brl(saidasDoMes)}`,
       '')}
@@ -80,9 +86,11 @@ function html() {
     ${kpi('A receber', brl(receber.total),
       receber.nVencidos ? `<span class="negativo">${receber.nVencidos} vencido(s): ${brl(receber.vencidos)}</span>`
         : `cartão ${brl(receber.cartao)} · a prazo ${brl(receber.fiado)}`)}
-    ${kpi('Ticket médio', brl(dre.ticketMedio), dre.itens ? num(dre.itens) + ' peças vendidas' : '')}
+    ${kpi('Peças vendidas', dre.itens ? num(dre.itens) : '0', 'no mês')}
     ${kpi('Estoque', brl(estoque.custo), num(estoque.unidades) + ' peças a custo')}
   </div>
+
+  ${metaHTML(meta)}
 
   ${mei.ativo ? `
   <div class="cartao">
@@ -142,16 +150,70 @@ function html() {
 
     <div class="cartao">
       <div class="cartao-cabecalho"><h3>Últimas vendas</h3>
+        ${vendasHoje.length ? `<span class="texto-2 pequeno num">${vendasHoje.length} hoje · ${brl(receitaHoje)}</span>` : ''}
         <button class="btn btn-p" data-ir="/vendas">Ver todas</button></div>
       ${vendasMes.length ? `<div class="lista">${vendasMes.slice(0, 6).map((v) => `
         <div class="item" data-venda="${v.id}">
-          <div class="corpo"><div class="titulo">#${v.numero} · ${esc(v.canalNome)}</div>
-            <div class="sub">${dataBR(v.data)}${v.hora ? ' ' + v.hora : ''} · ${v.itens.reduce((s, i) => s + i.qtd, 0)} peças</div></div>
+          <div class="corpo"><div class="titulo">${esc(quemComprou(e, v))}</div>
+            <div class="sub">${esc(quandoFoi(v, hoje))} · ${esc(oQueLevou(e, v))}${comoPagou(v)}</div></div>
           <div class="valor">${brl(v.totais.liquido)}</div>
         </div>`).join('')}</div>`
         : '<p class="texto-3 pequeno">Nenhuma venda neste mês ainda.</p>'}
+      ${aPrazoHoje(vendasHoje) ? `<p class="dica">Dos ${brl(receitaHoje)} de hoje,
+        <strong>${brl(aPrazoHoje(vendasHoje))}</strong> saíram a prazo e ainda não entraram no caixa.</p>` : ''}
     </div>
   </div>`;
+}
+
+/* ---- a linha de "Últimas vendas" --------------------------------------
+   Quem comprou vale mais que o número da venda: no balcão a conferência é
+   pelo nome. Sem cliente cadastrado, o canal responde a mesma pergunta. */
+/** "2026-10" -> "outubro". O ano fica de fora: o heroi e' sempre o mes atual. */
+function mesPorExtenso(comp) {
+  return competenciaBR(comp).split('/')[0].toLowerCase();
+}
+
+const NOME_DA_FORMA = {
+  dinheiro: 'dinheiro', pix: 'Pix', debito: 'débito', credito: 'crédito', fiado: 'a prazo',
+};
+
+function quemComprou(e, v) {
+  const c = v.clienteId && e.clientes[v.clienteId] ? e.clientes[v.clienteId] : null;
+  return c ? c.nome : v.canalNome;
+}
+
+function quandoFoi(v, hoje) {
+  // Venda de hoje mostra a hora; de outro dia, a data. Repetir a data de hoje
+  // em toda linha nao informa nada.
+  if (v.data === hoje) return v.hora || 'hoje';
+  return dataBR(v.data) + (v.hora ? ' ' + v.hora : '');
+}
+
+function oQueLevou(e, v) {
+  const pecas = v.itens.reduce((s, i) => s + i.qtd, 0);
+  if (v.itens.length === 1 && v.itens[0].qtd === 1) return nomeVariante(e, v.itens[0].varianteId);
+  return pecas + (pecas === 1 ? ' peça' : ' peças');
+}
+
+function comoPagou(v) {
+  const p = v.pagamentos || [];
+  if (!p.length) return '';
+  if (p.length > 1) return ' · dividido';
+  const f = p[0];
+  const nome = NOME_DA_FORMA[f.forma] || f.forma;
+  const parcelas = f.parcelas > 1 ? ' ' + f.parcelas + 'x' : '';
+  // A prazo e' o unico que merece etiqueta: e' dinheiro que ainda nao entrou.
+  if (f.forma === 'fiado') return ` <i class="tag tag-roxo">a prazo${esc(parcelas)}</i>`;
+  return ' · ' + esc(nome + parcelas);
+}
+
+/** Quanto das vendas de hoje saiu a prazo, ou seja, nao virou caixa ainda. */
+function aPrazoHoje(vendasHoje) {
+  let total = 0;
+  for (const v of vendasHoje) {
+    for (const p of v.pagamentos || []) if (p.forma === 'fiado') total += p.valor;
+  }
+  return total;
 }
 
 /**
@@ -163,13 +225,11 @@ function html() {
 function metaHTML(m) {
   if (!m.meta) return '';
   return `
-  <div class="cartao ${m.batida ? 'meta-batida' : ''}">
+  <div class="cartao no-inicio ${m.batida ? 'meta-batida' : ''}">
     <div class="cartao-cabecalho">
       <div class="crescer"><h3>Meta de ${esc(competenciaBR(m.comp))}</h3>
         <div class="texto-2 pequeno">meta de ${brl(m.meta)}</div></div>
-      ${m.batida
-        ? `<span class="selo-meta pulsa">${icone('check', 14)} Meta batida!</span>`
-        : `<button class="btn btn-p" data-ir="/metas">Ver metas</button>`}
+      <button class="btn btn-p" data-ir="/metas">Ver metas</button>
     </div>
     ${barraMeta(m.pct, m.batida)}
     <div class="meta-numeros">

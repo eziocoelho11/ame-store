@@ -88,7 +88,43 @@ function marcarNavAtiva(caminho) {
     const alvoBase = '/' + (alvo.split('/').filter(Boolean)[0] || '');
     a.classList.toggle('ativo', alvoBase === base);
   }
+  moverPilula();
 }
+
+/**
+ * Leva a pilula da barra de baixo ate' o item ativo, deslizando.
+ * E' um elemento so' que anda, e nao um fundo que acende em cada item: dois
+ * fundos ligados ao mesmo tempo fariam a selecao piscar no meio do caminho.
+ * Na PRIMEIRA chamada ela e' posta no lugar sem transicao, senao o app abriria
+ * com a pilula vindo da borda esquerda.
+ */
+let pilulaPosicionada = false;
+function moverPilula() {
+  const pilula = document.querySelector('.nav-desliza');
+  const ativo = document.querySelector('.nav-inferior a.ativo');
+  if (!pilula || !ativo) return;
+  const x = ativo.offsetLeft + (ativo.offsetWidth - pilula.offsetWidth) / 2;
+  if (!pilulaPosicionada) {
+    pilula.style.transition = 'none';
+    pilula.style.transform = `translateX(${x}px)`;
+    // Devolve a transicao so' no quadro seguinte: ligada no mesmo quadro, ela
+    // pegaria este primeiro posicionamento e animaria desde a borda.
+    requestAnimationFrame(() => { pilula.style.transition = ''; });
+    pilulaPosicionada = true;
+    return;
+  }
+  pilula.style.transform = `translateX(${x}px)`;
+}
+
+// Barra escondida (desktop) mede zero: so' ressincroniza quando a LARGURA muda
+// de verdade, para o teclado do celular abrindo nao reposicionar a pilula.
+let larguraConhecida = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === larguraConhecida) return;
+  larguraConhecida = window.innerWidth;
+  pilulaPosicionada = false;
+  moverPilula();
+});
 
 export function iniciarRoteador() {
   window.addEventListener('hashchange', renderizar);
