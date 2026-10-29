@@ -396,8 +396,9 @@ responde: *tem dinheiro na conta?*
 Loja lucrativa que quebra por falta de caixa é exatamente a diferença entre as
 duas. Por isso as duas telas existem separadas.
 
-A compra de mercadoria mostra bem isso: sai do caixa no dia em que a mercadoria
-chega, mas só entra na DRE como CMV quando a peça é vendida.
+A compra de mercadoria mostra bem isso: sai do caixa quando é paga — à vista, no
+dia em que a mercadoria chega; parcelada no cartão, no vencimento de cada
+parcela —, mas só entra na DRE como CMV quando a peça é vendida.
 
 ### O "Resultado do mês" da tela inicial é caixa
 A caixinha **Resultado do mês** mostra o que entrou menos o que saiu de verdade
@@ -427,6 +428,23 @@ Duas coisas sobre ele:
 Logo abaixo da tabela, a caixinha **Resultado da operação no ano, até agora**
 mostra o acumulado só dos meses que já fecharam — o número sem previsão nenhuma —
 e, ao lado, como o ano fecha se a previsão se confirmar.
+
+### Fluxo de caixa por dia ou por mês (no Financeiro)
+Na aba **Fluxo de caixa** do Financeiro, os botões **Por dia** e **Por mês**
+trocam a leitura do mesmo caixa.
+
+- **Por dia** é o extrato do período escolhido em *De* e *Até*: cada dia com o
+  que entrou, o que saiu, o saldo e o acumulado.
+- **Por mês** põe os meses lado a lado. Abre em janeiro a dezembro do ano
+  corrente, e os seletores *De* e *Até* escolhem outros meses — inclusive do ano
+  que vem, para ver até onde vão as parcelas. A conta é a mesma do quadro da
+  tela inicial: mês que já chegou mostra só o que entrou e saiu de verdade, e os
+  meses marcados com `*` são previsão. O **Acumulado** começa do zero no
+  primeiro mês escolhido.
+
+Na visão por mês, a caixinha do alto vira **Realizado nos meses**: só o que já
+entrou e saiu, sem previsão. O botão **CSV** baixa a tabela que está na tela —
+por dia ou por mês.
 
 ### Como os valores aparecem nas tabelas
 Nas tabelas, os números vêm **sem o "R$"**: a moeda é dita uma vez, no cabeçalho
