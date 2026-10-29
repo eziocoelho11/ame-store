@@ -759,3 +759,17 @@ th, .folha-rotulo {
 /* Duas colunas em 375px espremem lista com nome de peça: "Blusa Polo Canelada
    — Único / Nude" virava três linhas. No celular, uma coluna. */
 @media (max-width: 560px) { .grade-2 { grid-template-columns: 1fr; } }
+
+/* Tabela de 12 meses lado a lado (Comparativo da DRE, fluxo mês a mês da
+   Início). No PC os 12 meses cabem inteiros, sem rolar para o lado: letra um
+   pouco menor, respiro lateral curto e rótulo da linha sem quebrar. No celular
+   nada muda — a tabela continua rolando, com a letra do tamanho normal. */
+@media (min-width: 900px) {
+  .tabela-12 { font-size: .8rem; }
+  .tabela-12 th, .tabela-12 td { padding-left: .3rem; padding-right: .3rem; }
+  .tabela-12 th:first-child, .tabela-12 td:first-child { white-space: nowrap; padding-left: .15rem; }
+  /* A DRE tem 14 colunas (rubrica, 12 meses e o total): aperta um pouco mais
+     para caber também em notebook de 1280px. */
+  .dre.tabela-12 { font-size: .76rem; }
+  .dre.tabela-12 th, .dre.tabela-12 td { padding-left: .2rem; padding-right: .2rem; }
+}

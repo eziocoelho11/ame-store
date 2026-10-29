@@ -171,14 +171,17 @@ function anoHTML(e) {
 
   <div class="cartao">
     <h3>Comparativo</h3>
-    <div class="rolagem-x"><table class="dre">
+    <div class="texto-2 pequeno">valores em R$</div>
+    <div class="rolagem-x"><table class="dre tabela-12">
       <thead><tr><th>Rubrica</th>${serie.map((d) => `<th class="dir">${competenciaCurta(d.competencia)}</th>`).join('')}<th class="dir">Total</th></tr></thead>
       <tbody>${linhas.map(([rotulo, campo]) => {
         const destaque = ['Receita líquida', 'Lucro bruto', 'Resultado'].includes(rotulo);
+        // Sem "R$" em cada celula: a moeda e' dita uma vez, acima da tabela. E'
+        // o que faz os 12 meses caberem na tela do PC.
         return `<tr class="${destaque ? 'subtotal' : ''}">
           <td>${rotulo}</td>
-          ${serie.map((d) => `<td class="dir num">${brl(d[campo])}</td>`).join('')}
-          <td class="dir num negrito">${brl(soma(campo))}</td></tr>`;
+          ${serie.map((d) => `<td class="dir num">${brlSimples(d[campo])}</td>`).join('')}
+          <td class="dir num negrito">${brlSimples(soma(campo))}</td></tr>`;
       }).join('')}</tbody>
     </table></div>
   </div>`;

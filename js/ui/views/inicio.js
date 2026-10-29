@@ -292,7 +292,7 @@ function fluxoMensalHTML(fluxo) {
 
     ${grafLinhas(series, { solidoAte, formato: (v) => brlSimples(v) })}
 
-    <div class="rolagem-x mt"><table>
+    <div class="rolagem-x mt"><table class="tabela-12">
       <thead><tr><th></th>
         ${meses.map((m) => `<th class="dir ${m.futuro ? 'texto-3' : ''}">${esc(competenciaCurta(m.comp))}${m.futuro ? '*' : ''}</th>`).join('')}
       </tr></thead>
