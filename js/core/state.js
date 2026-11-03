@@ -177,6 +177,7 @@ export function aplicar(e, ev) {
     case 'venda.cancelada': cancelarVenda(e, ev, d); break;
     case 'venda.devolvida': devolverVenda(e, ev, d); break;
     case 'venda.trocada': trocarVenda(e, ev, d); break;
+    case 'venda.canal-alterado': alterarCanalVenda(e, ev, d); break;
 
     // ---------- despesas ----------
     case 'despesa.lancada':
@@ -708,6 +709,33 @@ function registrarVenda(e, ev, d) {
     });
   });
   venda.totais.taxas = taxasTotais;
+}
+
+/**
+ * Troca o canal de uma venda ja' registrada.
+ *
+ * A venda original NAO e' reescrita no sentido que importa: o canal de onde ela
+ * veio fica guardado em `canalAnterior`, e o evento no log conta a historia
+ * inteira. E' o mesmo desenho de `recebivel.editado`.
+ *
+ * A comissao do canal vem GRAVADA no evento (`comissaoPct`), nunca lida da
+ * configuracao na hora do replay. Se viesse da config, por 14% no marketplace
+ * amanha mudaria sozinho o faturamento de meses ja' fechados — a mesma
+ * armadilha que a antecipacao da maquininha ja' tinha mostrado.
+ */
+function alterarCanalVenda(e, ev, d) {
+  const venda = e.vendas[d.vendaId];
+  if (!venda || venda.status === 'cancelada') return;
+  if (venda.canal === d.canal) return;
+
+  venda.canalAnterior = venda.canal;
+  venda.canal = d.canal;
+  venda.canalNome = d.canalNome || d.canal;
+  venda.canalAlteradoEm = d.data || null;
+  // A base e' a mesma de quando a venda nasceu: bruto menos desconto.
+  venda.totais.comissaoCanal = aplicaPct(
+    venda.totais.bruto - venda.totais.desconto, d.comissaoPct || 0);
+  void ev;
 }
 
 function cancelarVenda(e, ev, d) {

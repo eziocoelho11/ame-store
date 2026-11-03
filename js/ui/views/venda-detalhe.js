@@ -47,7 +47,8 @@ function html(vendaId) {
           ${v.status === 'devolvida' ? tag('devolvida', 'erro') : ''}
           ${v.status === 'parcial' ? tag('devolução parcial', 'alerta') : ''}
           ${trocas.length ? tag(trocas.length === 1 ? 'trocada' : trocas.length + ' trocas', 'info') : ''}</h2>
-        <div class="texto-2 pequeno">${dataBR(v.data)}${v.hora ? ' às ' + v.hora : ''} · ${esc(v.canalNome)}
+        <div class="texto-2 pequeno">${dataBR(v.data)}${v.hora ? ' às ' + v.hora : ''} · ${esc(v.canalNome)}${
+          v.canalAnterior ? ` <i class="tag tag-info" title="Canal alterado em ${esc(dataBR(v.canalAlteradoEm))}">canal trocado</i>` : ''}
           ${cliente ? ' · ' + esc(cliente.nome) : ''}</div>
       </div>
     </div>
@@ -144,6 +145,7 @@ function html(vendaId) {
   ${v.status !== 'cancelada' ? `<div class="barra-botoes nao-imprimir">
     <button class="btn" data-acao="devolver">${icone('sincronizar', 16)} Registrar devolução</button>
     <button class="btn" data-acao="trocar">${icone('etiqueta', 16)} Registrar troca</button>
+    <button class="btn" data-acao="canal">${icone('filtro', 16)} Alterar canal</button>
     <button class="btn btn-perigo" data-acao="cancelar">${icone('fechar', 16)} Cancelar venda</button>
     <button class="btn btn-primario" data-acao="comprovante">${icone('documento', 16)} Comprovante em PDF</button>
   </div>` : `<div class="aviso aviso-erro">${icone('alerta')}<div>
@@ -188,6 +190,38 @@ function ligar(raiz, vendaId) {
   });
 
   liga(raiz, 'click', '[data-acao="trocar"]', () => abrirTroca({ vendaId }));
+
+  liga(raiz, 'click', '[data-acao="canal"]', async () => {
+    const e = log.estado();
+    const v = e.vendas[vendaId];
+    if (!v) return;
+    const canais = (e.config.canais || []).filter((c) => c.id !== v.canal);
+    if (!canais.length) { toast('Só existe um canal cadastrado. Cadastre outro em Ajustes.', 'erro'); return; }
+
+    abrirModal({
+      titulo: 'Canal da venda #' + v.numero,
+      corpo: `
+        <p class="texto-2">Hoje esta venda está em <strong>${esc(v.canalNome)}</strong>.
+          Trocar o canal não mexe em valor nenhum: muda onde ela conta nos relatórios.</p>
+        <div class="campo-grupo"><label for="vd-canal">Passar para</label>
+          <select id="vd-canal">
+            ${canais.map((c) => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}
+          </select></div>`,
+      botoes: [
+        { texto: 'Cancelar', acao: (f) => f() },
+        {
+          texto: 'Trocar canal', classe: 'btn-primario',
+          acao: async (fechar, r) => {
+            const canalId = r.querySelector('#vd-canal').value;
+            const nome = (e.config.canais || []).find((c) => c.id === canalId);
+            await acoes.alterarCanalVenda(vendaId, canalId);
+            fechar();
+            toast(`Venda #${v.numero} agora está em "${nome ? nome.nome : canalId}".`, 'ok');
+          },
+        },
+      ],
+    });
+  });
 
   liga(raiz, 'click', '[data-acao="devolver"]', () => {
     // Quantidade ja' devolvida por item, para nao aceitar devolucao a mais.

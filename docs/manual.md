@@ -105,6 +105,24 @@ Abra a venda (em Vendas) e use **Registrar devolução**. Escolha quantas peças
 voltam, se elas retornam ao estoque e como o valor foi devolvido. A devolução
 entra no mês em que aconteceu, não no mês da venda.
 
+### Trocar o canal de uma venda já registrada
+Às vezes a venda é lançada no canal errado — tudo como "Loja física" quando boa
+parte saiu por fora, por exemplo. Dá para corrigir depois, de dois jeitos:
+
+- **Uma venda:** abra a venda e use **Alterar canal**.
+- **Várias de uma vez:** em Vendas, marque a caixinha das que quer corrigir (ou
+  use **Selecionar as N**, que marca todas do período filtrado), escolha o canal
+  novo na barra que aparece embaixo e confirme.
+
+**Isso não mexe em valor nenhum.** Não muda receita, nem margem, nem o que você
+recebeu: muda só onde a venda conta nos relatórios, principalmente em
+**Onde vende**. A venda reclassificada ganha a etiqueta "canal trocado", e dá
+para trocar de novo quantas vezes precisar.
+
+Se um dia você puser comissão num canal (Ajustes › Canais de venda), ela vale
+para as vendas dali em diante. As que você reclassificou antes continuam como
+estavam — o app não reescreve mês que já fechou.
+
 ### Troca
 Na mesma venda, ao lado da devolução, fica **Registrar troca** — para quando a
 cliente traz uma peça e leva outra. A janela tem três partes:

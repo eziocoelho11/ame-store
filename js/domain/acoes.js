@@ -283,6 +283,44 @@ export function registrarVenda(venda) {
   });
 }
 
+/**
+ * Troca o canal de uma ou de varias vendas de uma vez.
+ *
+ * Um evento POR VENDA, e nao um evento com uma lista: o grao do log e' a venda,
+ * e assim desfazer uma depois nao obriga a desfazer o lote inteiro. O
+ * `registrarVarios` grava todos numa transacao so', entao o lote custa uma
+ * gravacao, nao sessenta.
+ *
+ * Devolve quantas vendas de fato mudaram. Venda cancelada e venda que ja' esta'
+ * no canal pedido ficam de fora em silencio — nao e' erro, e' trabalho que nao
+ * precisa ser feito.
+ */
+export function alterarCanalVenda(vendaIds, canalId) {
+  const e = est();
+  const canal = (e.config.canais || []).find((c) => c.id === canalId);
+  if (!canal) throw new Error('Canal nao encontrado: ' + canalId);
+
+  const ids = Array.isArray(vendaIds) ? vendaIds : [vendaIds];
+  const alvos = ids.filter((id) => {
+    const v = e.vendas[id];
+    return v && v.status !== 'cancelada' && v.canal !== canalId;
+  });
+  if (!alvos.length) return Promise.resolve(0);
+
+  const data = iso();
+  return log.registrarVarios(alvos.map((id) => ({
+    tipo: 'venda.canal-alterado',
+    dados: {
+      vendaId: id,
+      de: e.vendas[id].canal,
+      canal: canal.id,
+      canalNome: canal.nome,
+      comissaoPct: canal.comissaoPct || 0,
+      data,
+    },
+  }))).then(() => alvos.length);
+}
+
 export function cancelarVenda(vendaId, motivo) {
   return log.registrar('venda.cancelada', { vendaId, motivo: motivo || '', data: iso() });
 }
