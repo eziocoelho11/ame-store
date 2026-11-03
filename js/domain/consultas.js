@@ -249,14 +249,23 @@ export function fluxoCaixa(estado, de, ate) {
  * Conta vencida e ainda em aberto cai no mes corrente, nao no mes em que
  * venceu: e' dinheiro que ainda esta' na mesa hoje.
  */
-export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, ano = null } = {}) {
+export function fluxoCaixaMensal(estado, { hoje = iso(), antes = 6, depois = 6, ano = null, de = null, ate = null } = {}) {
   const compAtual = competencia(hoje);
   // `ano` mostra o exercicio fechado, de janeiro a dezembro — e' assim que o
-  // ano se fecha na contabilidade e na planilha da loja. Sem ele, a janela
+  // ano se fecha na contabilidade e na planilha da loja. `de`/`ate` ("AAAA-MM")
+  // e' a janela escolhida a' mao no Financeiro. Sem nenhum dos dois, a janela
   // anda junto com o mes corrente.
-  const comps = ano
-    ? Array.from({ length: 12 }, (_, i) => `${ano}-${String(i + 1).padStart(2, '0')}`)
-    : Array.from({ length: antes + depois + 1 }, (_, i) => somaMeses(compAtual, i - antes));
+  let comps;
+  if (ano) {
+    comps = Array.from({ length: 12 }, (_, i) => `${ano}-${String(i + 1).padStart(2, '0')}`);
+  } else if (de && ate) {
+    const [aDe, mDe] = de.split('-').map(Number);
+    const [aAte, mAte] = ate.split('-').map(Number);
+    const n = Math.max(1, (aAte * 12 + mAte) - (aDe * 12 + mDe) + 1);
+    comps = Array.from({ length: n }, (_, i) => somaMeses(de, i));
+  } else {
+    comps = Array.from({ length: antes + depois + 1 }, (_, i) => somaMeses(compAtual, i - antes));
+  }
   const primeiro = comps[0];
   const ultimo = comps[comps.length - 1];
   const meses = new Map();

@@ -2,11 +2,11 @@
 // A DRE diz se a loja da' lucro; esta tela diz se tem dinheiro na conta.
 import * as log from '../../core/eventlog.js';
 import * as acoes from '../../domain/acoes.js';
-import { recebiveis, aReceber, aReceberPorMes, fluxoCaixa, rotuloRecebivel, saldoDe } from '../../domain/consultas.js';
-import { brl, brlSimples, esc, iso, dataBR, dataCurta, competencia, limitesDaCompetencia, competenciaBR, normaliza } from '../../core/fmt.js';
+import { recebiveis, aReceber, aReceberPorMes, fluxoCaixa, fluxoCaixaMensal, rotuloRecebivel, saldoDe } from '../../domain/consultas.js';
+import { brl, brlSimples, esc, iso, dataBR, dataCurta, competencia, limitesDaCompetencia, competenciaBR, competenciaCurta, somaMeses, normaliza } from '../../core/fmt.js';
 import { icone } from '../icones.js';
 import { kpi, liga, toast, tag, vazio, paraCSV, csvMoeda, baixarArquivo, confirmar, debounce, vista } from '../ui.js';
-import { barras as grafBarras } from '../graficos.js';
+import { barras as grafBarras, linhas as grafLinhas } from '../graficos.js';
 import { abrirRecebimento } from '../receber.js';
 import { abrirEdicaoParcela } from '../editar-parcela.js';
 import { extratoCliente, imprimirFolha } from '../impressao.js';
@@ -14,6 +14,12 @@ import { extratoCliente, imprimirFolha } from '../impressao.js';
 let aba = 'receber';
 let periodo = null;
 let selecionados = new Set();
+
+// Fluxo de caixa por dia (o extrato do periodo) ou por mes (os meses lado a
+// lado, com a previsao dos que ainda nao chegaram). A janela de meses e'
+// propria: a de dias costuma ser um mes so', que por mes viraria uma linha.
+let visaoFluxo = 'dia';
+let mesesFluxo = null;
 
 // Os filtros vivem no modulo, e nao dentro do HTML: a tela se redesenha inteira
 // a cada evento gravado, entao guardar o filtro no elemento o perderia toda vez
@@ -26,6 +32,11 @@ export async function render(raiz) {
     const { inicio, fim } = limitesDaCompetencia(competencia(iso()));
     periodo = { de: inicio, ate: fim };
   }
+  if (!mesesFluxo) {
+    // Janeiro a dezembro do ano corrente: o mesmo recorte da tabela da Início.
+    const ano = iso().slice(0, 4);
+    mesesFluxo = { de: `${ano}-01`, ate: `${ano}-12` };
+  }
   const desenhar = vista(raiz, html, ligar);
   return log.assinar(desenhar);
 }
@@ -35,6 +46,8 @@ function html() {
   const hoje = iso();
   const r = aReceber(e, hoje);
   const fluxo = fluxoCaixa(e, periodo.de, periodo.ate);
+  const porMes = aba === 'fluxo' && visaoFluxo === 'mes';
+  const mensal = porMes ? fluxoCaixaMensal(e, { hoje, de: mesesFluxo.de, ate: mesesFluxo.ate }) : null;
   // Soma PAGAMENTO por pagamento: parcela paga em duas vezes conta metade em
   // cada janela, e nao tudo no dia em que fechou.
   const recebidoNoPeriodo = Object.values(e.recebiveis)
@@ -47,7 +60,8 @@ function html() {
     ${kpi('A receber', brl(r.total), `cartão ${brl(r.cartao)} · a prazo ${brl(r.fiado)}`, 'destaque')}
     ${kpi('Vencido', brl(r.vencidos), r.nVencidos ? r.nVencidos + ' parcela(s)' : 'nada vencido')}
     ${kpi('Próximos 30 dias', brl(r.proximos30))}
-    ${kpi('Saldo do período', brl(fluxo.saldo), `entrou ${brl(fluxo.entradas)} · saiu ${brl(fluxo.saidas)}`)}
+    ${porMes ? kpiRealizadoMeses(mensal)
+      : kpi('Saldo do período', brl(fluxo.saldo), `entrou ${brl(fluxo.entradas)} · saiu ${brl(fluxo.saidas)}`)}
   </div>
 
   <div class="pilulas mb">
@@ -57,7 +71,7 @@ function html() {
     <button class="pilula ${aba === 'fluxo' ? 'ativa' : ''}" data-aba="fluxo">Fluxo de caixa</button>
   </div>
 
-  ${aba === 'fluxo' ? fluxoHTML(fluxo)
+  ${aba === 'fluxo' ? (porMes ? fluxoMensalHTML(e, mensal) : fluxoHTML(fluxo))
     : aba === 'devedores' ? devedoresHTML(e, hoje)
     : aba === 'recebido' ? recebidosHTML(e, recebidoNoPeriodo)
     : aReceberHTML(e, hoje)}`;
@@ -291,9 +305,18 @@ function previsaoHTML(e, hoje) {
   </div>`;
 }
 
+/** Por dia ou por mes: as duas leituras do mesmo caixa. */
+function visaoFluxoHTML() {
+  return `<div class="pilulas" role="group" aria-label="Ver o fluxo de caixa">
+    <button class="pilula ${visaoFluxo === 'dia' ? 'ativa' : ''}" data-visao="dia">Por dia</button>
+    <button class="pilula ${visaoFluxo === 'mes' ? 'ativa' : ''}" data-visao="mes">Por mês</button>
+  </div>`;
+}
+
 function fluxoHTML(fluxo) {
   return `
   <div class="filtros">
+    ${visaoFluxoHTML()}
     <div class="campo-grupo"><label>De</label><input type="date" data-de value="${periodo.de}"></div>
     <div class="campo-grupo"><label>Até</label><input type="date" data-ate value="${periodo.ate}"></div>
     <div class="crescer"></div>
@@ -324,9 +347,116 @@ function fluxoHTML(fluxo) {
         <td class="dir num">${brlSimples(fluxo.saidas)}</td>
         <td class="dir num">${brlSimples(fluxo.saldo)}</td><td></td></tr></tfoot>
     </table></div>
-    <p class="dica">Compra de mercadoria entra aqui como saída no dia da entrada no estoque — na DRE ela só aparece como CMV quando a peça é vendida. É a mesma compra vista de dois jeitos, e os dois estão certos.</p>
+    <p class="dica">Compra de mercadoria entra aqui como saída quando é paga: à vista, no dia da entrada no estoque; parcelada no cartão, no vencimento de cada parcela. Na DRE ela só aparece como CMV quando a peça é vendida. É a mesma compra vista de dois jeitos, e os dois estão certos.</p>
   </div>`
     : vazio('dinheiro', 'Sem movimento no período', 'Ajuste as datas acima.')}`;
+}
+
+/**
+ * Os meses que aparecem nos seletores: do ano mais antigo com lancamento ate'
+ * dezembro do ano que vem, para dar para olhar a previsao de parcela longa.
+ */
+function mesesDisponiveis(e) {
+  const anoAtual = Number(iso().slice(0, 4));
+  let anoMin = anoAtual;
+  const ve = (data) => {
+    const a = Number(String(data || '').slice(0, 4));
+    if (a && a < anoMin) anoMin = a;
+  };
+  for (const d of Object.values(e.despesas)) ve(d.data);
+  for (const r of Object.values(e.recebiveis)) { ve(r.vencimento); for (const pg of (r.pagamentos || [])) ve(pg.data); }
+  for (const c of Object.values(e.compras || {})) ve(c.data);
+  const lista = [];
+  for (let comp = `${anoMin}-01`; comp <= `${anoAtual + 1}-12`; comp = somaMeses(comp, 1)) lista.push(comp);
+  return lista;
+}
+
+/**
+ * O que ja' entrou e saiu de verdade nos meses escolhidos. Previsao fica fora
+ * do numero grande pelo mesmo motivo da Inicio: misturar o contratado com o
+ * dinheiro na conta e' o jeito mais facil de o periodo parecer melhor do que foi.
+ */
+function kpiRealizadoMeses(mensal) {
+  const entrou = mensal.meses.reduce((s, m) => s + m.entradas, 0);
+  const saiu = mensal.meses.reduce((s, m) => s + m.saidas, 0);
+  return kpi('Realizado nos meses', brl(entrou - saiu), `entrou ${brl(entrou)} · saiu ${brl(saiu)}`);
+}
+
+/**
+ * Fluxo de caixa mes a mes, na janela escolhida. Mesma conta da tabela da
+ * Inicio (`fluxoCaixaMensal`): mes que ja' chegou mostra so' o realizado; mes
+ * que ainda nao chegou mostra o que ja' esta' contratado — parcela a receber,
+ * despesa lancada e nao paga, parcela de compra no cartao.
+ */
+function fluxoMensalHTML(e, mensal) {
+  const meses = mensal.meses;
+  const opcoes = mesesDisponiveis(e);
+  const seletor = (atributo, valor) => `<select ${atributo}>${opcoes.map((c) =>
+    `<option value="${c}"${c === valor ? ' selected' : ''}>${esc(competenciaCurta(c))}</option>`).join('')}</select>`;
+
+  const rotulos = meses.map((m) => competenciaCurta(m.comp));
+  const serie = (nome, cor, campo) => ({
+    nome, cor, dados: meses.map((m, i) => ({ rotulo: rotulos[i], valor: m[campo] })),
+  });
+  // Tracejado a partir do mes corrente. Janela toda no passado: tudo cheio;
+  // toda no futuro: tudo tracejado.
+  const iCorrente = meses.findIndex((m) => m.corrente);
+  const solidoAte = iCorrente >= 0 ? iCorrente : (meses[0].futuro ? 0 : null);
+  const corrente = meses.find((m) => m.corrente);
+  const futuros = meses.filter((m) => m.futuro);
+  const soma = (lista, campo) => lista.reduce((s, m) => s + m[campo], 0);
+  const cel = (v, classe) => `<td class="dir num ${classe || ''}">${v ? brlSimples(v) : '—'}</td>`;
+
+  return `
+  <div class="filtros">
+    ${visaoFluxoHTML()}
+    <div class="campo-grupo"><label>De</label>${seletor('data-mes-de', mesesFluxo.de)}</div>
+    <div class="campo-grupo"><label>Até</label>${seletor('data-mes-ate', mesesFluxo.ate)}</div>
+    <div class="crescer"></div>
+    <button class="btn" data-acao="csv-fluxo">${icone('documento', 16)} CSV</button>
+  </div>
+
+  <div class="cartao">
+    <h3>Mês a mês</h3>
+    <div class="texto-2 pequeno">${esc(competenciaBR(meses[0].comp))} a ${esc(competenciaBR(meses[meses.length - 1].comp))}
+      · valores em R$${futuros.length ? ' · trecho tracejado é previsão' : ''}</div>
+    ${grafLinhas([
+      serie('Entradas', 'var(--verde)', 'entradasTotal'),
+      serie('Saídas', 'var(--vermelho)', 'saidasTotal'),
+      serie('Saldo', 'var(--roxo)', 'saldo'),
+    ], { solidoAte, formato: (v) => brlSimples(v) })}
+  </div>
+
+  <div class="cartao">
+    <div class="rolagem-x"><table>
+      <thead><tr><th>Mês</th><th class="dir">Entradas (R$)</th><th class="dir">Saídas (R$)</th>
+        <th class="dir">Saldo (R$)</th><th class="dir">Acumulado (R$)</th></tr></thead>
+      <tbody>${meses.map((m) => `<tr>
+        <td class="${m.futuro ? 'texto-3' : ''}">${esc(competenciaBR(m.comp))}${m.futuro ? '*' : ''}${m.corrente ? ' ' + tag('mês atual', 'roxo') : ''}</td>
+        ${cel(m.entradasTotal, 'positivo')}
+        ${cel(m.saidasTotal, 'negativo')}
+        <td class="dir num ${m.saldo < 0 ? 'negativo' : ''}">${brlSimples(m.saldo)}</td>
+        <td class="dir num negrito ${m.acumuladoOperacional < 0 ? 'negativo' : ''}">${brlSimples(m.acumuladoOperacional)}</td></tr>`).join('')}
+      </tbody>
+    </table></div>
+
+    <div class="flex entre pequeno mt quebra gap-g">
+      ${corrente && corrente.temPrevisto ? `<span class="texto-2">Ainda este mês · entra
+        <strong class="num">${brl(corrente.entradasPrevistas)}</strong> · sai
+        <strong class="num">${brl(corrente.saidasPrevistas)}</strong></span>` : ''}
+      ${futuros.length ? `<span class="texto-2">Meses com * · entra
+        <strong class="num">${brl(soma(futuros, 'entradasTotal'))}</strong> · sai
+        <strong class="num">${brl(soma(futuros, 'saidasTotal'))}</strong></span>` : ''}
+    </div>
+
+    <p class="dica"><strong>Mês que já chegou mostra só o que entrou e saiu de verdade.</strong> Os meses marcados
+      com * são previsão: parcelas a receber, despesas lançadas e não pagas e parcelas de compra no cartão, cada uma
+      no mês do vencimento. Despesa fixa de mês à frente só entra depois de lançada em
+      <a href="#/despesas">Despesas</a>. É a mesma conta da tabela da Início.</p>
+    <p class="dica"><strong>Acumulado</strong> é o saldo somado mês a mês, a partir do primeiro mês escolhido.
+      ${mensal.herdadoTotal ? `O saldo de ${brl(mensal.herdadoTotal)} que veio da planilha do ano anterior aparece
+        em Entradas, mas fica fora do Acumulado — ele entrou no caixa, mas não é resultado da operação.` : ''}</p>
+  </div>`;
 }
 
 /**
@@ -503,6 +633,18 @@ function ligar(raiz, redesenhar) {
   liga(raiz, 'click', '[data-aba]', (ev, el) => { aba = el.dataset.aba; selecionados.clear(); redesenhar(); });
   liga(raiz, 'change', '[data-de]', (ev, el) => { periodo.de = el.value; redesenhar(); });
   liga(raiz, 'change', '[data-ate]', (ev, el) => { periodo.ate = el.value; redesenhar(); });
+  liga(raiz, 'click', '[data-visao]', (ev, el) => { visaoFluxo = el.dataset.visao; redesenhar(); });
+  // "De" depois de "Ate'" empurra o outro junto, em vez de mostrar tela vazia.
+  liga(raiz, 'change', '[data-mes-de]', (ev, el) => {
+    mesesFluxo.de = el.value;
+    if (mesesFluxo.ate < el.value) mesesFluxo.ate = el.value;
+    redesenhar();
+  });
+  liga(raiz, 'change', '[data-mes-ate]', (ev, el) => {
+    mesesFluxo.ate = el.value;
+    if (mesesFluxo.de > el.value) mesesFluxo.de = el.value;
+    redesenhar();
+  });
 
   // Mexer no filtro esvazia a selecao: manter marcada uma parcela que saiu da
   // tela faria a barra somar dinheiro que ninguem esta' vendo.
@@ -583,6 +725,17 @@ function ligar(raiz, redesenhar) {
   });
 
   liga(raiz, 'click', '[data-acao="csv-fluxo"]', () => {
+    if (visaoFluxo === 'mes') {
+      const mensal = fluxoCaixaMensal(e, { hoje: iso(), de: mesesFluxo.de, ate: mesesFluxo.ate });
+      const linhas = mensal.meses.map((m) => [
+        competenciaBR(m.comp), m.futuro ? 'Previsão' : (m.corrente ? 'Mês atual (realizado)' : 'Realizado'),
+        csvMoeda(m.entradasTotal), csvMoeda(m.saidasTotal), csvMoeda(m.saldo), csvMoeda(m.acumuladoOperacional),
+      ]);
+      const csv = paraCSV(['Mês', 'Situação', 'Entradas', 'Saídas', 'Saldo', 'Acumulado'], linhas);
+      baixarArquivo(`AME Store - fluxo de caixa mensal ${mesesFluxo.de} a ${mesesFluxo.ate}.csv`, csv, 'text/csv');
+      toast('Arquivo gerado.', 'ok');
+      return;
+    }
     const fluxo = fluxoCaixa(e, periodo.de, periodo.ate);
     const linhas = [];
     for (const d of fluxo.dias) {
